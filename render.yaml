@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: matriarchs-proxy
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: "npm install"
+    startCommand: "node server.js"
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: PROXY_KEY
+        value: matriarchs
+    healthCheckPath: /health
