@@ -4,35 +4,35 @@ const url = require("url");
 
 const PORT = 65432;
 
-// Ignore system proxy env
 process.env.HTTP_PROXY = "";
 process.env.HTTPS_PROXY = "";
 
 // =====================
-// SIMPLE UI PAGE
+// UI PAGE
 // =====================
 function renderHome(res) {
   res.writeHead(200, { "Content-Type": "text/html" });
   res.end(`
     <html>
-      <head>
-        <title>Proxy UI</title>
-      </head>
+      <head><title>Proxy UI</title></head>
       <body style="font-family: Arial; padding: 40px;">
         <h1>🚀 Local Proxy</h1>
         <form method="GET" action="/go">
-          <input 
-            type="text" 
-            name="url" 
-            placeholder="Enter URL (http://example.com)" 
-            style="width:400px; padding:10px;"
-          />
+          <input name="url" style="width:400px;padding:10px;" placeholder="http://example.com"/>
           <button type="submit">Go</button>
         </form>
-        <p>Example: http://example.com</p>
       </body>
     </html>
   `);
+}
+
+// =====================
+// REWRITE LINKS (basic)
+// =====================
+function rewriteHTML(html, baseUrl) {
+  return html
+    .replace(/href="\/(.*?)"/g, `href="${baseUrl}/$1"`)
+    .replace(/src="\/(.*?)"/g, `src="${baseUrl}/$1`);
 }
 
 // =====================
@@ -42,25 +42,75 @@ const server = http.createServer((req, res) => {
   try {
     const parsed = url.parse(req.url, true);
 
-    // 🟢 HOMEPAGE
-    if (req.url === "/" || req.url === "/favicon.ico") {
+    // 🟢 Home UI
+    if (parsed.pathname === "/") {
       return renderHome(res);
     }
 
-    // 🟢 FORM HANDLER
+    // 🟢 Proxy via UI
     if (parsed.pathname === "/go") {
       let target = parsed.query.url;
+
+      if (!target) {
+        return renderHome(res);
+      }
 
       if (!target.startsWith("http")) {
         target = "http://" + target;
       }
 
-      res.writeHead(302, { Location: target });
-      return res.end();
+      const targetUrl = url.parse(target);
+
+      console.log(`[UI FETCH] ${target}`);
+
+      const options = {
+        hostname: targetUrl.hostname,
+        port: targetUrl.port || 80,
+        path: targetUrl.path,
+        method: "GET",
+        headers: {
+          "User-Agent": "Mozilla/5.0",
+        },
+      };
+
+      const proxyReq = http.request(options, (proxyRes) => {
+        let data = [];
+
+        proxyRes.on("data", (chunk) => data.push(chunk));
+
+        proxyRes.on("end", () => {
+          let body = Buffer.concat(data);
+
+          const contentType = proxyRes.headers["content-type"] || "";
+
+          // Only rewrite HTML
+          if (contentType.includes("text/html")) {
+            let html = body.toString();
+            html = rewriteHTML(html, targetUrl.protocol + "//" + targetUrl.host);
+
+            res.writeHead(proxyRes.statusCode, {
+              "Content-Type": "text/html",
+            });
+            return res.end(html);
+          }
+
+          // Otherwise return raw
+          res.writeHead(proxyRes.statusCode, proxyRes.headers);
+          res.end(body);
+        });
+      });
+
+      proxyReq.on("error", (err) => {
+        res.writeHead(500);
+        res.end("Error: " + err.message);
+      });
+
+      proxyReq.end();
+      return;
     }
 
     // =====================
-    // NORMAL PROXY FLOW
+    // NORMAL PROXY MODE
     // =====================
     const fullUrl = req.url.startsWith("http")
       ? req.url
@@ -89,7 +139,6 @@ const server = http.createServer((req, res) => {
     };
 
     delete options.headers["proxy-connection"];
-    delete options.headers["proxy-authorization"];
 
     const proxyReq = http.request(options, (proxyRes) => {
       res.writeHead(proxyRes.statusCode, proxyRes.headers);
@@ -99,13 +148,12 @@ const server = http.createServer((req, res) => {
     req.pipe(proxyReq);
 
     proxyReq.on("error", (err) => {
-      console.error("[HTTP ERROR]", err.message);
       res.writeHead(500);
       res.end("Proxy error: " + err.message);
     });
 
   } catch (err) {
-    console.error("[FATAL]", err);
+    console.error(err);
     res.end("Fatal error");
   }
 });
@@ -116,7 +164,6 @@ const server = http.createServer((req, res) => {
 server.on("connect", (req, clientSocket, head) => {
   const [host, port] = req.url.split(":");
 
-  // loop protection
   if (
     (host === "localhost" || host === "127.0.0.1") &&
     port == PORT
@@ -142,5 +189,5 @@ server.on("connect", (req, clientSocket, head) => {
 // START
 // =====================
 server.listen(PORT, () => {
-  console.log(`✅ Proxy with UI running at http://localhost:${PORT}`);
+  console.log(`✅ Proxy UI running at http://localhost:${PORT}`);
 });
