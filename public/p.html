@@ -166,7 +166,7 @@
 
     <div id="url-wrap">
       <span id="secure-icon"></span>
-      <input id="url-bar" type="text" placeholder="Search or enter address…" spellcheck="false" autocomplete="off"/>
+      <input id="url-bar" type="text" placeholder="Search Brave or enter address…" spellcheck="false" autocomplete="off"/>
       <button id="clear-btn" onclick="clearUrl()" tabindex="-1">×</button>
     </div>
 
@@ -188,11 +188,11 @@
       <div class="nt-title">MATRIARCHS <span>BROWSER</span></div>
       <div class="nt-sub">SOVEREIGN BROWSING — POWERED BY MOS PROXY</div>
       <div class="nt-search-wrap">
-        <input id="nt-search" type="text" placeholder="Search Google or enter a URL…" spellcheck="false" autocomplete="off"/>
+        <input id="nt-search" type="text" placeholder="Search Brave or enter a URL…" spellcheck="false" autocomplete="off"/>
         <button id="nt-go" onclick="ntNavigate()">GO</button>
       </div>
       <div class="nt-quick-links">
-        <div class="nt-link" onclick="loadUrl('https://www.google.com')">🔍 Google</div>
+        <div class="nt-link" onclick="loadUrl('https://search.brave.com')">🦁 Brave</div>
         <div class="nt-link" onclick="loadUrl('https://www.youtube.com')">▶ YouTube</div>
         <div class="nt-link" onclick="loadUrl('https://www.wikipedia.org')">📖 Wikipedia</div>
         <div class="nt-link" onclick="loadUrl('https://github.com')">🐙 GitHub</div>
@@ -232,6 +232,7 @@
 const navHistory = [];
 let histIdx      = -1;
 let _loadTimer   = null;
+let _blankTimer  = null;   // detects stuck/blank pages (e.g. YouTube)
 let _currentRealUrl = "";
 
 const urlBar     = document.getElementById("url-bar");
@@ -249,6 +250,21 @@ const errPage    = document.getElementById("error-page");
 const errTitle   = document.getElementById("err-title");
 const errMsg     = document.getElementById("err-msg");
 
+// Sites known to heavily block proxies — show a helpful warning
+const BLOCKED_SITES = [
+  "youtube.com", "www.youtube.com",
+  "accounts.google.com", "mail.google.com",
+  "netflix.com", "www.netflix.com",
+  "twitter.com", "x.com",
+];
+
+function isKnownBlocked(urlStr) {
+  try {
+    const h = new URL(urlStr).hostname.replace(/^www\./, "");
+    return BLOCKED_SITES.some(s => s.replace(/^www\./, "") === h);
+  } catch { return false; }
+}
+
 // ── URL helpers ───────────────────────────────────────────────────────────────
 function normalise(input) {
   input = (input || "").trim();
@@ -261,7 +277,8 @@ function normalise(input) {
     if (!/^https?:\/\//i.test(input)) input = "https://" + input;
     return input;
   }
-  return "https://www.google.com/search?q=" + encodeURIComponent(input);
+  // ── DEFAULT SEARCH ENGINE: Brave ──────────────────────────────────────────
+  return "https://search.brave.com/search?q=" + encodeURIComponent(input);
 }
 
 function proxyUrl(target) {
@@ -325,12 +342,14 @@ function navFwd() {
 
 function navReload() {
   hideError();
+  clearTimeout(_blankTimer);
   const u = navHistory[histIdx];
   if (u) showFrame(u);
 }
 
 function goHome() {
   hideError();
+  clearTimeout(_blankTimer);
   urlBar.value          = "";
   _currentRealUrl       = "";
   frame.src             = "about:blank";
@@ -352,6 +371,7 @@ function updateNavBtns() {
 // ── Frame ─────────────────────────────────────────────────────────────────────
 function showFrame(targetUrl) {
   hideError();
+  clearTimeout(_blankTimer);
   newtab.classList.add("hidden");
   frame.style.display = "block";
   updateSecureIcon(targetUrl);
@@ -359,9 +379,20 @@ function showFrame(targetUrl) {
   statusExt.textContent = targetUrl;
   setLoading(true);
   frame.src = proxyUrl(targetUrl);
+
+  // If the page appears blank after 12 s and it's a known anti-proxy site, warn the user
+  _blankTimer = setTimeout(() => {
+    if (isKnownBlocked(targetUrl)) {
+      showError(
+        "SITE BLOCKED PROXY",
+        `${new URL(targetUrl).hostname} actively blocks proxy access.\n\nTry a different site, or open it directly in a new tab.`
+      );
+    }
+  }, 12000);
 }
 
 frame.addEventListener("load", () => {
+  clearTimeout(_blankTimer);
   setLoading(false);
   statusTxt.textContent = "Done";
   statusExt.textContent = _currentRealUrl || urlBar.value || "";
@@ -376,6 +407,7 @@ frame.addEventListener("load", () => {
 });
 
 frame.addEventListener("error", () => {
+  clearTimeout(_blankTimer);
   setLoading(false);
   showError("CONNECTION ERROR", "Unable to reach the requested page. Check the URL or try again.");
 });
@@ -434,22 +466,15 @@ document.addEventListener("keydown", e => {
 window.addEventListener("message", e => {
   if (!e.data) return;
 
-  // Proxied page navigated (link click, JS navigation)
+  // ── Proxied page link clicked → parent drives the navigation ─────────────
+  // (the injected script sends this; the parent is the single source of truth
+  //  for frame.src so all history / URL-bar / loading state stays in sync)
   if (e.data.type === "mos-navigate-proxy" && e.data.url) {
-    const abs = e.data.url;
-    _currentRealUrl = abs;
-    urlBar.value = abs;
-    updateSecureIcon(abs);
-    if (histIdx < navHistory.length - 1) navHistory.splice(histIdx + 1);
-    navHistory.push(abs);
-    histIdx = navHistory.length - 1;
-    updateNavBtns();
-    setLoading(true);
-    statusTxt.textContent = "Loading…";
-    statusExt.textContent = abs;
+    loadUrl(e.data.url);
+    return;
   }
 
-  // Injected script reports current real URL (after SPA navigation, history changes)
+  // ── SPA / history-API URL update (no full reload needed) ─────────────────
   if (e.data.type === "mos-url-update" && e.data.url) {
     const realUrl = e.data.url;
     if (realUrl && realUrl !== _currentRealUrl && !realUrl.startsWith("about:")) {
@@ -457,12 +482,19 @@ window.addEventListener("message", e => {
       urlBar.value = realUrl;
       updateSecureIcon(realUrl);
       statusExt.textContent = realUrl;
+      // Keep history in sync for SPA navigations
+      if (histIdx < navHistory.length - 1) navHistory.splice(histIdx + 1);
+      navHistory.push(realUrl);
+      histIdx = navHistory.length - 1;
+      updateNavBtns();
     }
+    return;
   }
 
-  // Direct navigation from parent OS window
+  // ── Direct navigation request from parent OS window ───────────────────────
   if (e.data.type === "mos-navigate" && e.data.url) {
     loadUrl(e.data.url);
+    return;
   }
 });
 </script>
