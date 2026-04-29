@@ -210,12 +210,6 @@
       <button class="err-btn" onclick="goHome()">Go Home</button>
     </div>
 
-    <!--
-      KEY CHANGE: No sandbox attribute.
-      sandbox was blocking scripts, localStorage, cookies, popups —
-      all things sites need to function. Removed entirely.
-      allow= gives fullscreen + autoplay + clipboard.
-    -->
     <iframe
       id="page-frame"
       src="about:blank"
@@ -238,6 +232,7 @@
 const navHistory = [];
 let histIdx      = -1;
 let _loadTimer   = null;
+let _currentRealUrl = "";
 
 const urlBar     = document.getElementById("url-bar");
 const frame      = document.getElementById("page-frame");
@@ -273,11 +268,20 @@ function proxyUrl(target) {
   return "/fetch?url=" + encodeURIComponent(target);
 }
 
+function updateSecureIcon(url) {
+  if (!url) { secureIcon.textContent = ""; return; }
+  const isHttps = url.startsWith("https://");
+  secureIcon.textContent = isHttps ? "🔒" : "⚠";
+  secureIcon.title       = isHttps ? "Secure" : "Not secure";
+  secureIcon.style.color = isHttps ? "#4ade80" : "#febc2e";
+}
+
 // ── Navigation ────────────────────────────────────────────────────────────────
 function loadUrl(rawUrl) {
   const norm = normalise(rawUrl);
   if (!norm) return;
   urlBar.value = norm;
+  _currentRealUrl = norm;
   if (histIdx < navHistory.length - 1) navHistory.splice(histIdx + 1);
   navHistory.push(norm);
   histIdx = navHistory.length - 1;
@@ -302,6 +306,8 @@ function navBack() {
   histIdx--;
   const u = navHistory[histIdx];
   urlBar.value = u;
+  _currentRealUrl = u;
+  updateSecureIcon(u);
   showFrame(u);
   updateNavBtns();
 }
@@ -311,6 +317,8 @@ function navFwd() {
   histIdx++;
   const u = navHistory[histIdx];
   urlBar.value = u;
+  _currentRealUrl = u;
+  updateSecureIcon(u);
   showFrame(u);
   updateNavBtns();
 }
@@ -324,6 +332,7 @@ function navReload() {
 function goHome() {
   hideError();
   urlBar.value          = "";
+  _currentRealUrl       = "";
   frame.src             = "about:blank";
   frame.style.display   = "none";
   newtab.classList.remove("hidden");
@@ -345,32 +354,25 @@ function showFrame(targetUrl) {
   hideError();
   newtab.classList.add("hidden");
   frame.style.display = "block";
-
-  const isHttps = targetUrl.startsWith("https://");
-  secureIcon.textContent = isHttps ? "🔒" : "⚠";
-  secureIcon.title       = isHttps ? "Secure" : "Not secure";
-  secureIcon.style.color = isHttps ? "#4ade80" : "#febc2e";
-
+  updateSecureIcon(targetUrl);
   statusTxt.textContent = "Loading…";
   statusExt.textContent = targetUrl;
   setLoading(true);
-
   frame.src = proxyUrl(targetUrl);
 }
 
 frame.addEventListener("load", () => {
   setLoading(false);
   statusTxt.textContent = "Done";
-  statusExt.textContent = urlBar.value || "";
+  statusExt.textContent = _currentRealUrl || urlBar.value || "";
 
-  // Check if the frame returned a JSON error from the proxy
   try {
     const body = frame.contentDocument?.body?.innerText?.trim() || "";
     if (body.startsWith('{"error"')) {
       const parsed = JSON.parse(body);
       showError("PROXY ERROR", parsed.error || "An unknown proxy error occurred.");
     }
-  } catch { /* cross-origin — normal, ignore */ }
+  } catch { /* cross-origin — normal */ }
 });
 
 frame.addEventListener("error", () => {
@@ -428,22 +430,39 @@ document.addEventListener("keydown", e => {
   if (e.altKey && e.key === "ArrowRight") navFwd();
 });
 
-// ── postMessage from parent OS ────────────────────────────────────────────────
+// ── postMessage from injected proxy script ────────────────────────────────────
 window.addEventListener("message", e => {
   if (!e.data) return;
-  if (e.data.type === "mos-navigate" && e.data.url) {
-    loadUrl(e.data.url);
-  }
+
+  // Proxied page navigated (link click, JS navigation)
   if (e.data.type === "mos-navigate-proxy" && e.data.url) {
-    urlBar.value = e.data.url;
+    const abs = e.data.url;
+    _currentRealUrl = abs;
+    urlBar.value = abs;
+    updateSecureIcon(abs);
     if (histIdx < navHistory.length - 1) navHistory.splice(histIdx + 1);
-    navHistory.push(e.data.url);
+    navHistory.push(abs);
     histIdx = navHistory.length - 1;
     updateNavBtns();
-    const isHttps = e.data.url.startsWith("https://");
-    secureIcon.textContent = isHttps ? "🔒" : "⚠";
-    secureIcon.style.color = isHttps ? "#4ade80" : "#febc2e";
-    statusExt.textContent  = e.data.url;
+    setLoading(true);
+    statusTxt.textContent = "Loading…";
+    statusExt.textContent = abs;
+  }
+
+  // Injected script reports current real URL (after SPA navigation, history changes)
+  if (e.data.type === "mos-url-update" && e.data.url) {
+    const realUrl = e.data.url;
+    if (realUrl && realUrl !== _currentRealUrl && !realUrl.startsWith("about:")) {
+      _currentRealUrl = realUrl;
+      urlBar.value = realUrl;
+      updateSecureIcon(realUrl);
+      statusExt.textContent = realUrl;
+    }
+  }
+
+  // Direct navigation from parent OS window
+  if (e.data.type === "mos-navigate" && e.data.url) {
+    loadUrl(e.data.url);
   }
 });
 </script>
