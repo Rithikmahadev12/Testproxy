@@ -276,29 +276,38 @@ function injectHelpers(html, targetUrl, proxyBase) {
     return _winOpen ? _winOpen.call(this, url, '_self', features) : null;
   };
 
-  /* ── Link click interception ──────────────────────────────────────────── */
+  /* ── Link click interception ──────────────────────────────────────────────
+     Strategy: always delegate navigation to the PARENT (p.html) via postMessage.
+     The parent owns frame.src and is the single source of truth for history.
+     We do NOT change window.location.href here — that caused double-navigation.
+  ── */
   document.addEventListener('click', function(e) {
     var el = e.target;
     while (el && el.tagName !== 'A') el = el.parentElement;
     if (!el) return;
+
     var href = el.getAttribute('href');
     if (!href || href.startsWith('#') || href.startsWith('javascript:') ||
-        href.startsWith('mailto:') || href.startsWith('tel:') ||
-        href.startsWith(_prefix)) return;
+        href.startsWith('mailto:') || href.startsWith('tel:')) return;
 
+    // Already a proxy URL → let the iframe navigate itself normally
+    if (href.startsWith(_prefix)) return;
+
+    // Resolve to absolute URL
     var abs;
     try {
-      if      (href.startsWith('//'))           abs = 'https:' + href;
-      else if (/^https?:\\/\\//i.test(href))    abs = href;
-      else                                       abs = new URL(href, _targetUrl).href;
+      if      (href.startsWith('//'))          abs = 'https:' + href;
+      else if (/^https?:\\/\\//i.test(href))   abs = href;
+      else                                      abs = new URL(href, _targetUrl).href;
     } catch(e) { return; }
 
     e.preventDefault();
     e.stopPropagation();
-    try { _realParent.postMessage({ type: 'mos-navigate-proxy', url: abs }, '*'); } catch(err) {}
-    // Use raw Location setter to avoid double-proxify
-    try { Object.getOwnPropertyDescriptor(Location.prototype,'href').set.call(location, _prefix + encodeURIComponent(abs)); }
-    catch(e) { window.location.href = _prefix + encodeURIComponent(abs); }
+
+    // Tell the parent to navigate — it will update frame.src, history, and URL bar
+    try {
+      _realParent.postMessage({ type: 'mos-navigate-proxy', url: abs }, '*');
+    } catch(err) {}
   }, true);
 
   /* ── MutationObserver: fix dynamically injected nodes ────────────────── */
