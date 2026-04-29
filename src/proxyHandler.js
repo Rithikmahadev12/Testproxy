@@ -5,22 +5,25 @@
 //  Handles GET /fetch?url= requests
 // ══════════════════════════════════════
 
-const http    = require("http");
-const https   = require("https");
-const url     = require("url");
+const http  = require("http");
+const https = require("https");
+const url   = require("url");
 
 const { isBlocked, cleanResponseHeaders, buildRequestHeaders } = require("./blocklist");
 const { rewriteHtml, rewriteCss, injectHelpers }               = require("./rewriter");
 const { decompress, collectBuffer }                            = require("./decompress");
 
-// Max redirects to follow before giving up
-const MAX_REDIRECTS = 8;
-// Request timeout in ms
-const TIMEOUT_MS    = 20_000;
+const MAX_REDIRECTS = 10;
+const TIMEOUT_MS    = 25_000;
 
-/**
- * Sets standard CORS headers so the browser iframe can load the response.
- */
+// Keep-alive agents for connection reuse
+const httpAgent  = new http.Agent({ keepAlive: true, maxSockets: 50 });
+const httpsAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 50,
+  rejectUnauthorized: false, // allow self-signed certs on proxied sites
+});
+
 function setCORS(res) {
   res.setHeader("Access-Control-Allow-Origin",   "*");
   res.setHeader("Access-Control-Allow-Methods",  "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD");
@@ -28,37 +31,21 @@ function setCORS(res) {
   res.setHeader("Access-Control-Expose-Headers", "*");
 }
 
-/**
- * Determine the "proxy base" URL (scheme + host) from an incoming request.
- * Used to build rewritten URLs like https://myapp.onrender.com/fetch?url=...
- */
 function getProxyBase(req) {
   const proto = req.headers["x-forwarded-proto"] || "https";
   const host  = req.headers["x-forwarded-host"] || req.headers["host"] || "localhost:3000";
   return `${proto}://${host}`;
 }
 
-/**
- * Parse and validate the target URL from the query string.
- * Returns a URL object or null on failure.
- */
 function parseTargetUrl(rawParam) {
   if (!rawParam) return null;
   let decoded;
   try { decoded = decodeURIComponent(rawParam); } catch { decoded = rawParam; }
-
-  // Try as-is first
-  try { return new URL(decoded); } catch { /* fall through */ }
-
-  // Try prepending https://
-  try { return new URL("https://" + decoded); } catch { /* fall through */ }
-
+  try { return new URL(decoded); } catch {}
+  try { return new URL("https://" + decoded); } catch {}
   return null;
 }
 
-/**
- * Collect the request body (for POST/PUT etc.)
- */
 function collectRequestBody(req) {
   return new Promise((resolve) => {
     const chunks = [];
@@ -68,19 +55,13 @@ function collectRequestBody(req) {
   });
 }
 
-/**
- * Main proxy fetch handler.
- * Called by server.js for GET/POST /fetch?url= requests.
- */
 async function handleFetch(req, res) {
   setCORS(res);
 
-  // Parse query
   const parsed    = url.parse(req.url, true);
   const rawTarget = parsed.query.url;
   const noRewrite = parsed.query.rewrite === "false";
 
-  // Validate URL
   const targetUrl = parseTargetUrl(rawTarget);
   if (!targetUrl) {
     res.writeHead(400, { "Content-Type": "application/json" });
@@ -88,26 +69,17 @@ async function handleFetch(req, res) {
     return;
   }
 
-  // Block check
   if (isBlocked(targetUrl.hostname)) {
     res.writeHead(403, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: "Host blocked by Matriarchs OS policy" }));
     return;
   }
 
-  const proxyBase  = getProxyBase(req);
+  const proxyBase   = getProxyBase(req);
   const requestBody = await collectRequestBody(req);
 
   try {
-    await fetchAndRespond({
-      req,
-      res,
-      targetUrl,
-      proxyBase,
-      noRewrite,
-      requestBody,
-      redirectCount: 0,
-    });
+    await fetchAndRespond({ req, res, targetUrl, proxyBase, noRewrite, requestBody, redirectCount: 0 });
   } catch (err) {
     if (!res.headersSent) {
       res.writeHead(502, { "Content-Type": "application/json" });
@@ -116,9 +88,6 @@ async function handleFetch(req, res) {
   }
 }
 
-/**
- * Internal: fire the upstream request, handle redirects, decompress, rewrite.
- */
 async function fetchAndRespond({ req, res, targetUrl, proxyBase, noRewrite, requestBody, redirectCount }) {
   if (redirectCount > MAX_REDIRECTS) {
     res.writeHead(310, { "Content-Type": "application/json" });
@@ -126,94 +95,111 @@ async function fetchAndRespond({ req, res, targetUrl, proxyBase, noRewrite, requ
     return;
   }
 
-  const lib        = targetUrl.protocol === "https:" ? https : http;
-  const isHttps    = targetUrl.protocol === "https:";
+  const isHttps      = targetUrl.protocol === "https:";
+  const lib          = isHttps ? https : http;
+  const agent        = isHttps ? httpsAgent : httpAgent;
   const targetOrigin = targetUrl.origin;
 
+  // Build realistic browser headers
   const outHeaders = buildRequestHeaders(req.headers, {
-    "Host":    targetUrl.hostname,
-    "Referer": targetOrigin + "/",
-    "Origin":  targetOrigin,
-    ...(requestBody
-      ? {
-          "Content-Length": String(requestBody.length),
-          "Content-Type":   req.headers["content-type"] || "application/octet-stream",
-        }
-      : {}),
+    "Host":             targetUrl.hostname,
+    "Referer":          targetOrigin + "/",
+    "Origin":           targetOrigin,
+    "Accept":           req.headers["accept"] || "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language":  "en-US,en;q=0.9",
+    ...(requestBody ? {
+      "Content-Length": String(requestBody.length),
+      "Content-Type":   req.headers["content-type"] || "application/octet-stream",
+    } : {}),
   });
+
+  // Pass cookies through if present
+  if (req.headers["cookie"]) {
+    outHeaders["Cookie"] = req.headers["cookie"];
+  }
 
   const options = {
     hostname: targetUrl.hostname,
     port:     targetUrl.port || (isHttps ? 443 : 80),
-    path:     targetUrl.pathname + targetUrl.search,
+    path:     (targetUrl.pathname || "/") + (targetUrl.search || ""),
     method:   req.method === "HEAD" ? "HEAD" : req.method,
     headers:  outHeaders,
     timeout:  TIMEOUT_MS,
+    agent,
   };
 
   return new Promise((resolve, reject) => {
     const proxyReq = lib.request(options, async (proxyRes) => {
       try {
-        // ── Redirect handling ────────────────────────────────────────────────
+        // ── Redirects ──────────────────────────────────────────────────────
         if ([301, 302, 303, 307, 308].includes(proxyRes.statusCode)) {
           const location = proxyRes.headers["location"];
-          if (location) {
-            let redirectTarget;
-            try {
-              redirectTarget = new URL(location, targetUrl.href);
-            } catch {
-              // bad location header — just 502
-              res.writeHead(502, { "Content-Type": "application/json" });
-              res.end(JSON.stringify({ error: "Bad redirect location" }));
-              return resolve();
-            }
-
-            // Consume response body to free socket
-            proxyRes.resume();
-
-            // If blocked destination, stop
-            if (isBlocked(redirectTarget.hostname)) {
-              res.writeHead(403, { "Content-Type": "application/json" });
-              res.end(JSON.stringify({ error: "Redirect target blocked" }));
-              return resolve();
-            }
-
-            setCORS(res);
-            return resolve(
-              fetchAndRespond({
-                req, res,
-                targetUrl:    redirectTarget,
-                proxyBase,
-                noRewrite,
-                requestBody:  null, // GET redirects don't resend body
-                redirectCount: redirectCount + 1,
-              })
-            );
+          proxyRes.resume();
+          if (!location) {
+            res.writeHead(502, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Empty redirect location" }));
+            return resolve();
           }
+          let redirectTarget;
+          try { redirectTarget = new URL(location, targetUrl.href); }
+          catch {
+            res.writeHead(502, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Bad redirect location" }));
+            return resolve();
+          }
+          if (isBlocked(redirectTarget.hostname)) {
+            res.writeHead(403, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Redirect target blocked" }));
+            return resolve();
+          }
+          setCORS(res);
+          return resolve(fetchAndRespond({
+            req, res,
+            targetUrl:     redirectTarget,
+            proxyBase,
+            noRewrite,
+            requestBody:   null,
+            redirectCount: redirectCount + 1,
+          }));
         }
 
         const contentType = (proxyRes.headers["content-type"] || "").toLowerCase();
         const encoding    = proxyRes.headers["content-encoding"] || "";
-        const isHtml      = contentType.includes("html");
-        const isCss       = contentType.includes("css");
+        const isHtml      = contentType.includes("text/html");
+        const isCss       = contentType.includes("text/css");
         const isJs        = contentType.includes("javascript") || contentType.includes("ecmascript");
-        const shouldRewrite = !noRewrite && (isHtml || isCss || isJs);
+        const isJson      = contentType.includes("application/json");
+
+        // Only rewrite HTML and CSS — JS rewriting via injected runtime is safer
+        const shouldRewrite = !noRewrite && (isHtml || isCss);
 
         const cleanedHeaders = cleanResponseHeaders(proxyRes.headers);
+
+        // Forward Set-Cookie headers (rewrite domain)
+        if (proxyRes.headers["set-cookie"]) {
+          const cookies = proxyRes.headers["set-cookie"].map(c =>
+            c.replace(/;\s*domain=[^;]*/gi, "")
+             .replace(/;\s*secure/gi, "")
+             .replace(/;\s*samesite=[^;]*/gi, "")
+          );
+          cleanedHeaders["set-cookie"] = cookies;
+        }
+
         setCORS(res);
 
-        // ── Pass-through (binary, images, fonts, etc.) ───────────────────────
+        // ── Pass-through (images, fonts, binary, JSON, JS, etc.) ──────────
         if (!shouldRewrite) {
           res.writeHead(proxyRes.statusCode, cleanedHeaders);
           proxyRes.pipe(res);
-          proxyRes.on("end", resolve);
+          proxyRes.on("end",   resolve);
           proxyRes.on("error", reject);
           return;
         }
 
-        // ── Text rewriting ───────────────────────────────────────────────────
-        delete cleanedHeaders["content-encoding"];  // we'll decompress
-        delete cleanedHeaders["content-length"];    // length changes after rewrite
+        // ── Text rewriting (HTML, CSS) ─────────────────────────────────────
+        delete cleanedHeaders["content-encoding"];
+        delete cleanedHeaders["content-length"];
+        delete cleanedHeaders["transfer-encoding"];
 
         const decompressed = decompress(proxyRes, encoding);
         let bodyBuffer;
@@ -222,7 +208,7 @@ async function fetchAndRespond({ req, res, targetUrl, proxyBase, noRewrite, requ
         } catch (e) {
           if (!res.headersSent) {
             res.writeHead(502, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ error: "Decompression failed" }));
+            res.end(JSON.stringify({ error: "Decompression failed", message: e.message }));
           }
           return resolve();
         }
@@ -235,26 +221,37 @@ async function fetchAndRespond({ req, res, targetUrl, proxyBase, noRewrite, requ
         } else if (isCss) {
           bodyText = rewriteCss(bodyText, targetUrl.href, proxyBase);
         }
-        // JS: minimal rewrite — let runtime interception (injected script) handle it
 
+        const outBuf = Buffer.from(bodyText, "utf8");
         res.writeHead(proxyRes.statusCode, {
           ...cleanedHeaders,
           "Content-Type":   contentType,
-          "Content-Length": Buffer.byteLength(bodyText, "utf8"),
+          "Content-Length": outBuf.length,
         });
-        res.end(bodyText);
+        res.end(outBuf);
         resolve();
 
       } catch (innerErr) {
-        reject(innerErr);
+        if (!res.headersSent) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Internal rewrite error", message: innerErr.message }));
+        }
+        resolve();
       }
     });
 
     proxyReq.on("timeout", () => {
-      proxyReq.destroy(new Error("Upstream request timed out"));
+      proxyReq.destroy(new Error("Upstream request timed out after " + TIMEOUT_MS + "ms"));
     });
 
-    proxyReq.on("error", reject);
+    proxyReq.on("error", (err) => {
+      if (!res.headersSent) {
+        setCORS(res);
+        res.writeHead(502, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Upstream connection failed", message: err.message }));
+      }
+      resolve();
+    });
 
     if (requestBody) proxyReq.write(requestBody);
     proxyReq.end();
