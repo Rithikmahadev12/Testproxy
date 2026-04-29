@@ -26,7 +26,6 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { width: 100%; height: 100%; background: var(--bg); font-family: var(--sans); color: var(--text); overflow: hidden; }
 
-    /* ── Layout ─────────────────────────────────────────────── */
     #layout { display: flex; flex-direction: column; width: 100%; height: 100%; }
     #content-area { flex: 1; position: relative; background: var(--bg); overflow: hidden; }
     #page-frame { width: 100%; height: 100%; border: none; display: block; background: #fff; }
@@ -57,7 +56,6 @@
       transition: border-color 0.15s;
     }
     #url-wrap:focus-within { border-color: var(--border-hi); }
-
     #secure-icon { font-size: 11px; margin-right: 6px; flex-shrink: 0; }
     #url-bar {
       flex: 1; background: transparent; border: none; outline: none;
@@ -65,7 +63,6 @@
       letter-spacing: 0.04em; user-select: text; min-width: 0;
     }
     #url-bar::placeholder { color: var(--text-dim); }
-
     #clear-btn {
       background: transparent; border: none; color: var(--text-dim);
       cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px;
@@ -73,7 +70,6 @@
     }
     #clear-btn:hover { color: var(--text); }
     #url-bar:not(:placeholder-shown) ~ #clear-btn { display: block; }
-
     #go-btn {
       padding: 0 14px; height: 30px; flex-shrink: 0;
       background: var(--gold); color: #000; border: none; border-radius: 6px;
@@ -107,7 +103,6 @@
       cursor: pointer; letter-spacing: 0.1em; transition: background 0.12s;
     }
     #nt-go:hover { background: var(--gold2); }
-
     .nt-quick-links { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 480px; }
     .nt-link {
       background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
@@ -115,11 +110,7 @@
       cursor: pointer; letter-spacing: 0.08em; transition: background 0.12s, color 0.12s, border-color 0.12s;
     }
     .nt-link:hover { background: var(--surface3); color: var(--text); border-color: var(--border-hi); }
-
-    .nt-sub {
-      font-family: var(--mono); font-size: 9px; color: var(--text-dim);
-      letter-spacing: 0.12em; margin-top: -8px;
-    }
+    .nt-sub { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 0.12em; margin-top: -8px; }
 
     /* ── Loading bar ────────────────────────────────────────── */
     #loading-bar {
@@ -214,17 +205,22 @@
     <div id="error-page">
       <div class="err-icon">⚠</div>
       <div class="err-title" id="err-title">CONNECTION ERROR</div>
-      <div class="err-msg"   id="err-msg">Unable to reach the requested page. The host may be blocked, unreachable, or the proxy encountered an error.</div>
+      <div class="err-msg"   id="err-msg">Unable to reach the requested page.</div>
       <button class="err-btn" onclick="navReload()">Try Again</button>
       <button class="err-btn" onclick="goHome()">Go Home</button>
     </div>
 
-    <!-- Proxy iframe -->
+    <!--
+      KEY CHANGE: No sandbox attribute.
+      sandbox was blocking scripts, localStorage, cookies, popups —
+      all things sites need to function. Removed entirely.
+      allow= gives fullscreen + autoplay + clipboard.
+    -->
     <iframe
       id="page-frame"
       src="about:blank"
-      sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-      style="display:none"
+      allow="autoplay; fullscreen; encrypted-media; clipboard-write; clipboard-read; payment"
+      style="display:none;width:100%;height:100%;border:none;display:block"
     ></iframe>
   </div>
 
@@ -239,12 +235,10 @@
 <script>
 "use strict";
 
-// ── State ─────────────────────────────────────────────────────────────────────
 const navHistory = [];
 let histIdx      = -1;
 let _loadTimer   = null;
 
-// ── Elements ──────────────────────────────────────────────────────────────────
 const urlBar     = document.getElementById("url-bar");
 const frame      = document.getElementById("page-frame");
 const newtab     = document.getElementById("newtab");
@@ -264,9 +258,7 @@ const errMsg     = document.getElementById("err-msg");
 function normalise(input) {
   input = (input || "").trim();
   if (!input) return null;
-  // Already a proxied URL?
   if (input.startsWith("/fetch?url=")) return input;
-  // Looks like a URL
   const looksLikeUrl =
     /^https?:\/\//i.test(input) ||
     (/\.[a-z]{2,}(\/|$)/i.test(input) && !/\s/.test(input));
@@ -274,7 +266,6 @@ function normalise(input) {
     if (!/^https?:\/\//i.test(input)) input = "https://" + input;
     return input;
   }
-  // Treat as search query
   return "https://www.google.com/search?q=" + encodeURIComponent(input);
 }
 
@@ -286,10 +277,7 @@ function proxyUrl(target) {
 function loadUrl(rawUrl) {
   const norm = normalise(rawUrl);
   if (!norm) return;
-
   urlBar.value = norm;
-
-  // Trim forward history when navigating to a new page
   if (histIdx < navHistory.length - 1) navHistory.splice(histIdx + 1);
   navHistory.push(norm);
   histIdx = navHistory.length - 1;
@@ -335,9 +323,9 @@ function navReload() {
 
 function goHome() {
   hideError();
-  urlBar.value         = "";
-  frame.src            = "about:blank";
-  frame.style.display  = "none";
+  urlBar.value          = "";
+  frame.src             = "about:blank";
+  frame.style.display   = "none";
   newtab.classList.remove("hidden");
   statusTxt.textContent = "Ready";
   statusExt.textContent = "";
@@ -345,10 +333,7 @@ function goHome() {
   setLoading(false);
 }
 
-function clearUrl() {
-  urlBar.value = "";
-  urlBar.focus();
-}
+function clearUrl() { urlBar.value = ""; urlBar.focus(); }
 
 function updateNavBtns() {
   btnBack.disabled = histIdx <= 0;
@@ -363,7 +348,7 @@ function showFrame(targetUrl) {
 
   const isHttps = targetUrl.startsWith("https://");
   secureIcon.textContent = isHttps ? "🔒" : "⚠";
-  secureIcon.title       = isHttps ? "Secure (HTTPS)" : "Not secure";
+  secureIcon.title       = isHttps ? "Secure" : "Not secure";
   secureIcon.style.color = isHttps ? "#4ade80" : "#febc2e";
 
   statusTxt.textContent = "Loading…";
@@ -375,18 +360,17 @@ function showFrame(targetUrl) {
 
 frame.addEventListener("load", () => {
   setLoading(false);
-  const u = urlBar.value || "Ready";
   statusTxt.textContent = "Done";
-  statusExt.textContent = u;
+  statusExt.textContent = urlBar.value || "";
 
-  // Check if frame landed on an error (blank / error JSON)
+  // Check if the frame returned a JSON error from the proxy
   try {
-    const body = frame.contentDocument?.body?.innerText || "";
+    const body = frame.contentDocument?.body?.innerText?.trim() || "";
     if (body.startsWith('{"error"')) {
       const parsed = JSON.parse(body);
       showError("PROXY ERROR", parsed.error || "An unknown proxy error occurred.");
     }
-  } catch { /* cross-origin — ignore */ }
+  } catch { /* cross-origin — normal, ignore */ }
 });
 
 frame.addEventListener("error", () => {
@@ -401,8 +385,8 @@ function setLoading(on) {
     loadBar.style.width      = "0%";
     clearTimeout(_loadTimer);
     requestAnimationFrame(() => {
-      loadBar.style.transition = "width 1.2s ease";
-      loadBar.style.width      = "80%";
+      loadBar.style.transition = "width 1.4s ease";
+      loadBar.style.width      = "75%";
     });
     btnReload.style.opacity = "0.5";
   } else {
@@ -422,15 +406,14 @@ function showError(title, msg) {
   errMsg.textContent   = msg;
   errPage.classList.add("visible");
   frame.style.display  = "none";
+  setLoading(false);
 }
 
-function hideError() {
-  errPage.classList.remove("visible");
-}
+function hideError() { errPage.classList.remove("visible"); }
 
 // ── Key bindings ──────────────────────────────────────────────────────────────
 urlBar.addEventListener("keydown", e => {
-  if (e.key === "Enter") { e.preventDefault(); navigate(); }
+  if (e.key === "Enter")  { e.preventDefault(); navigate(); }
   if (e.key === "Escape") { urlBar.blur(); }
 });
 
@@ -441,18 +424,16 @@ ntSearch.addEventListener("keydown", e => {
 document.addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key === "l") { e.preventDefault(); urlBar.select(); }
   if ((e.ctrlKey || e.metaKey) && e.key === "r") { e.preventDefault(); navReload(); }
-  if ((e.altKey) && e.key === "ArrowLeft")  navBack();
-  if ((e.altKey) && e.key === "ArrowRight") navFwd();
+  if (e.altKey && e.key === "ArrowLeft")  navBack();
+  if (e.altKey && e.key === "ArrowRight") navFwd();
 });
 
 // ── postMessage from parent OS ────────────────────────────────────────────────
 window.addEventListener("message", e => {
   if (!e.data) return;
-  // Parent OS navigating us to a URL
   if (e.data.type === "mos-navigate" && e.data.url) {
     loadUrl(e.data.url);
   }
-  // Proxy iframe reporting a navigation (link clicked inside proxied page)
   if (e.data.type === "mos-navigate-proxy" && e.data.url) {
     urlBar.value = e.data.url;
     if (histIdx < navHistory.length - 1) navHistory.splice(histIdx + 1);
