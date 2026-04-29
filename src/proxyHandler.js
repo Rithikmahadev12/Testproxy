@@ -21,7 +21,7 @@ const httpAgent  = new http.Agent({ keepAlive: true, maxSockets: 50 });
 const httpsAgent = new https.Agent({
   keepAlive: true,
   maxSockets: 50,
-  rejectUnauthorized: false, // allow self-signed certs on proxied sites
+  rejectUnauthorized: false,
 });
 
 function setCORS(res) {
@@ -53,6 +53,25 @@ function collectRequestBody(req) {
     req.on("end",   ()  => resolve(chunks.length ? Buffer.concat(chunks) : null));
     req.on("error", ()  => resolve(null));
   });
+}
+
+// Minimal proxy helper to inject at the top of JS files
+function buildJsHelper(prefix, origin, targetUrl) {
+  return `(function(){try{
+var __p=${JSON.stringify(prefix)},__o=${JSON.stringify(origin)},__t=${JSON.stringify(targetUrl)};
+function __prx(u){
+  if(!u||typeof u!=='string')return u;
+  var s=u.trim();
+  if(!s||s.startsWith(__p)||s.startsWith('data:')||s.startsWith('blob:')||s.startsWith('javascript:')||s.startsWith('#'))return u;
+  if(s.startsWith('//'))return __p+encodeURIComponent('https:'+s);
+  if(/^https?:\\/\\//.test(s))return __p+encodeURIComponent(s);
+  if(s.startsWith('/'))return __p+encodeURIComponent(__o+s);
+  try{return __p+encodeURIComponent(new URL(s,__t).href);}catch(e){return u;}
+}
+if(window.fetch){var _f=window.fetch;window.fetch=function(i,o){try{i=typeof i==='string'?__prx(i):i}catch(e){}return _f.call(this,i,o)};}
+var _x=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){var a=Array.prototype.slice.call(arguments);try{a[1]=__prx(u)}catch(e){}return _x.apply(this,a)};
+}catch(e){}})();
+`;
 }
 
 async function handleFetch(req, res) {
@@ -100,12 +119,11 @@ async function fetchAndRespond({ req, res, targetUrl, proxyBase, noRewrite, requ
   const agent        = isHttps ? httpsAgent : httpAgent;
   const targetOrigin = targetUrl.origin;
 
-  // Build realistic browser headers
   const outHeaders = buildRequestHeaders(req.headers, {
     "Host":             targetUrl.hostname,
     "Referer":          targetOrigin + "/",
     "Origin":           targetOrigin,
-    "Accept":           req.headers["accept"] || "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept":           req.headers["accept"] || "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     "Accept-Language":  "en-US,en;q=0.9",
     ...(requestBody ? {
       "Content-Length": String(requestBody.length),
@@ -113,7 +131,7 @@ async function fetchAndRespond({ req, res, targetUrl, proxyBase, noRewrite, requ
     } : {}),
   });
 
-  // Pass cookies through if present
+  // Forward cookies for session-dependent sites
   if (req.headers["cookie"]) {
     outHeaders["Cookie"] = req.headers["cookie"];
   }
@@ -167,27 +185,29 @@ async function fetchAndRespond({ req, res, targetUrl, proxyBase, noRewrite, requ
         const encoding    = proxyRes.headers["content-encoding"] || "";
         const isHtml      = contentType.includes("text/html");
         const isCss       = contentType.includes("text/css");
-        const isJs        = contentType.includes("javascript") || contentType.includes("ecmascript");
-        const isJson      = contentType.includes("application/json");
+        const isJs        = !noRewrite && (
+          contentType.includes("javascript") ||
+          contentType.includes("ecmascript") ||
+          contentType.includes("text/js")
+        );
 
-        // Only rewrite HTML and CSS — JS rewriting via injected runtime is safer
-        const shouldRewrite = !noRewrite && (isHtml || isCss);
+        const shouldRewrite = !noRewrite && (isHtml || isCss || isJs);
 
         const cleanedHeaders = cleanResponseHeaders(proxyRes.headers);
 
-        // Forward Set-Cookie headers (rewrite domain)
+        // Rewrite Set-Cookie: strip domain/secure/samesite so cookies stick
         if (proxyRes.headers["set-cookie"]) {
-          const cookies = proxyRes.headers["set-cookie"].map(c =>
-            c.replace(/;\s*domain=[^;]*/gi, "")
-             .replace(/;\s*secure/gi, "")
-             .replace(/;\s*samesite=[^;]*/gi, "")
+          cleanedHeaders["set-cookie"] = proxyRes.headers["set-cookie"].map(c =>
+            c
+              .replace(/;\s*domain=[^;]*/gi, "")
+              .replace(/;\s*secure/gi, "")
+              .replace(/;\s*samesite=[^;]*/gi, "")
           );
-          cleanedHeaders["set-cookie"] = cookies;
         }
 
         setCORS(res);
 
-        // ── Pass-through (images, fonts, binary, JSON, JS, etc.) ──────────
+        // ── Pass-through (images, fonts, binary, etc.) ─────────────────────
         if (!shouldRewrite) {
           res.writeHead(proxyRes.statusCode, cleanedHeaders);
           proxyRes.pipe(res);
@@ -196,7 +216,7 @@ async function fetchAndRespond({ req, res, targetUrl, proxyBase, noRewrite, requ
           return;
         }
 
-        // ── Text rewriting (HTML, CSS) ─────────────────────────────────────
+        // ── Text rewriting (HTML / CSS / JS) ───────────────────────────────
         delete cleanedHeaders["content-encoding"];
         delete cleanedHeaders["content-length"];
         delete cleanedHeaders["transfer-encoding"];
@@ -220,6 +240,15 @@ async function fetchAndRespond({ req, res, targetUrl, proxyBase, noRewrite, requ
           bodyText = injectHelpers(bodyText, targetUrl.href, proxyBase);
         } else if (isCss) {
           bodyText = rewriteCss(bodyText, targetUrl.href, proxyBase);
+        } else if (isJs) {
+          // Inject a minimal proxy helper at the very top of JS files
+          // Handles "use strict" by wrapping in IIFE rather than prepending raw
+          const helper = buildJsHelper(
+            `${proxyBase}/fetch?url=`,
+            targetOrigin,
+            targetUrl.href
+          );
+          bodyText = helper + bodyText;
         }
 
         const outBuf = Buffer.from(bodyText, "utf8");
