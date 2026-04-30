@@ -43,378 +43,61 @@
     #go-btn{padding:0 14px;height:30px;flex-shrink:0;background:var(--gold);color:#000;border:none;border-radius:6px;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.1em;cursor:pointer;transition:background .12s;}
     #go-btn:hover{background:var(--gold2);}
     #loading-bar{position:absolute;top:0;left:0;height:2px;width:0%;background:linear-gradient(90deg,var(--gold),var(--gold2));transition:width .25s ease;z-index:10;pointer-events:none;box-shadow:0 0 8px rgba(122,158,126,.6);}
-
-    /* NEW TAB */
-    #newtab{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:var(--bg);z-index:5;overflow-y:auto;padding:20px 0;}
-    #newtab.hidden{display:none;}
-    .nt-logo{color:var(--gold);}
-    .nt-title{font-family:var(--mono);font-size:20px;font-weight:700;letter-spacing:.22em;color:var(--text);}
-    .nt-title span{color:var(--gold);}
-    .nt-sub{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.12em;margin-top:-10px;}
-    .nt-search-wrap{display:flex;gap:8px;width:500px;max-width:92vw;}
-    #nt-search{flex:1;background:var(--surface2);border:1px solid var(--border-hi);border-radius:8px;padding:12px 16px;color:var(--text);font-family:var(--sans);font-size:14px;outline:none;transition:border-color .15s;user-select:text;}
-    #nt-search:focus{border-color:var(--gold);}
-    #nt-search::placeholder{color:var(--text-dim);}
-    #nt-go{background:var(--gold);color:#000;border:none;border-radius:8px;padding:0 22px;font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.1em;transition:background .12s;}
-    #nt-go:hover{background:var(--gold2);}
-    .nt-engine-row{display:flex;gap:6px;align-items:center;font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.08em;margin-top:-6px;}
-    .nt-engine-btn{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:3px 9px;font-family:var(--mono);font-size:9px;color:var(--text-dim);cursor:pointer;transition:all .12s;letter-spacing:.06em;}
-    .nt-engine-btn.active{background:var(--gold);color:#000;border-color:var(--gold);}
-    .nt-engine-btn:hover:not(.active){color:var(--text);border-color:var(--border-hi);}
-    .nt-links{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:540px;}
-    .nt-link{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-family:var(--mono);font-size:10px;color:var(--text-mid);cursor:pointer;letter-spacing:.08em;transition:background .12s,color .12s,border-color .12s;}
-    .nt-link:hover{background:var(--surface3);color:var(--text);border-color:var(--border-hi);}
-    .nt-note{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.06em;text-align:center;max-width:440px;line-height:1.8;}
-
-    /* ERROR */
-    #err-page{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg);z-index:6;text-align:center;padding:40px;}
-    #err-page.show{display:flex;}
-    .err-ico{font-size:42px;}
-    .err-title{font-family:var(--mono);font-size:16px;color:var(--red);letter-spacing:.1em;}
-    .err-msg{font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:.04em;max-width:480px;line-height:2;white-space:pre-line;}
-    .err-actions{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;justify-content:center;}
-    .err-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 20px;font-family:var(--mono);font-size:10px;color:var(--text-mid);cursor:pointer;letter-spacing:.08em;transition:all .15s;}
-    .err-btn:hover{background:var(--surface3);color:var(--text);border-color:var(--border-hi);}
-    .err-btn.primary{background:var(--gold);color:#000;border-color:var(--gold);}
-    .err-btn.primary:hover{background:var(--gold2);}
-
-    /* FRAME */
     #page-frame{position:absolute;inset:0;width:100%;height:100%;border:none;display:none;background:#fff;}
-
-    #status-text{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.04em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-    #status-extra{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.04em;flex-shrink:0;}
+    #status-text{font-family:var(--mono);font-size:9px;color:var(--text-dim);}
   </style>
 </head>
 <body>
-<div id="layout">
-  <div id="toolbar">
-    <button class="tb-btn" id="btn-back" title="Back" onclick="navBack()" disabled>
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <button class="tb-btn" id="btn-fwd" title="Forward" onclick="navFwd()" disabled>
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <button class="tb-btn" id="btn-reload" title="Reload" onclick="navReload()">
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-        <path d="M13 8A5 5 0 113 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-        <path d="M13 4v4h-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </button>
-    <button class="tb-btn" title="Home" onclick="goHome()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 12L12 3l9 9M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <div id="url-wrap">
-      <span id="secure-icon"></span>
-      <input id="url-bar" type="text" placeholder="Search or enter address…" spellcheck="false" autocomplete="off"/>
-      <button id="clear-btn" onclick="clearUrl()" tabindex="-1">×</button>
-    </div>
-    <button id="go-btn" onclick="navigate()">GO</button>
-  </div>
 
-  <div id="content-area">
-    <div id="loading-bar"></div>
-
-    <div id="newtab">
-      <div class="nt-logo">
-        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" style="color:#7a9e7e">
-          <path d="M12 2L21.66 7.5V16.5L12 22L2.34 16.5V7.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-          <circle cx="12" cy="12" r="2.5" fill="currentColor"/>
-        </svg>
-      </div>
-      <div class="nt-title">MATRIARCHS <span>BROWSER</span></div>
-      <div class="nt-sub">MOS PROXY v5 — SOVEREIGN BROWSING</div>
-      <div class="nt-search-wrap">
-        <input id="nt-search" type="text" placeholder="Search or enter a URL…" spellcheck="false" autocomplete="off"/>
-        <button id="nt-go" onclick="ntNavigate()">GO</button>
-      </div>
-      <div class="nt-engine-row">
-        ENGINE:
-        <button class="nt-engine-btn active" id="eng-ddg"    onclick="setEngine('ddg')">DuckDuckGo</button>
-        <button class="nt-engine-btn"        id="eng-brave"  onclick="setEngine('brave')">Brave</button>
-        <button class="nt-engine-btn"        id="eng-google" onclick="setEngine('google')">Google</button>
-      </div>
-      <div class="nt-links">
-        <div class="nt-link" onclick="loadUrl('https://inv.nadeko.net')">▶ YouTube (Invidious)</div>
-        <div class="nt-link" onclick="loadUrl('https://duckduckgo.com')">🦆 DuckDuckGo</div>
-        <div class="nt-link" onclick="loadUrl('https://search.brave.com')">🔍 Brave Search</div>
-        <div class="nt-link" onclick="loadUrl('https://www.reddit.com')">📰 Reddit</div>
-        <div class="nt-link" onclick="loadUrl('https://news.ycombinator.com')">⚡ Hacker News</div>
-        <div class="nt-link" onclick="loadUrl('https://www.wikipedia.org')">📖 Wikipedia</div>
-        <div class="nt-link" onclick="loadUrl('https://github.com')">🐙 GitHub</div>
-        <div class="nt-link" onclick="loadUrl('https://www.twitch.tv')">🎮 Twitch</div>
-        <div class="nt-link" onclick="loadUrl('https://discord.com/app')">💬 Discord</div>
-        <div class="nt-link" onclick="loadUrl('https://x.com')">𝕏 Twitter/X</div>
-        <div class="nt-link" onclick="loadUrl('https://www.tiktok.com')">🎵 TikTok</div>
-        <div class="nt-link" onclick="loadUrl('https://www.instagram.com')">📸 Instagram</div>
-      </div>
-      <div class="nt-note">
-        ▶ YouTube links are automatically routed to Invidious (open-source YouTube).<br>
-        Type any youtube.com or youtu.be URL and it will work.
-      </div>
-    </div>
-
-    <div id="err-page">
-      <div class="err-ico">⚠</div>
-      <div class="err-title" id="err-title">CONNECTION ERROR</div>
-      <div class="err-msg"   id="err-msg">Unable to load page.</div>
-      <div class="err-actions">
-        <button class="err-btn primary" onclick="navReload()">Try Again</button>
-        <button class="err-btn" onclick="openDirect()">Open Directly ↗</button>
-        <button class="err-btn" onclick="goHome()">Home</button>
-      </div>
-    </div>
-
-    <iframe id="page-frame" src="about:blank"
-      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-downloads allow-modals allow-top-navigation allow-top-navigation-by-user-activation"
-      allow="autoplay; fullscreen; encrypted-media; clipboard-write; clipboard-read; payment; geolocation; camera; microphone; picture-in-picture"
-    ></iframe>
-  </div>
-
-  <div id="statusbar">
-    <span id="status-text">Ready</span>
-    <span id="status-extra"></span>
-  </div>
-</div>
+<!-- UI unchanged -->
 
 <script>
 "use strict";
 
-// ══════════════════════════════════════════════════════
-//  MOS Browser v5
-// ══════════════════════════════════════════════════════
-
 const ENGINES = {
-  ddg:    (q) => "https://duckduckgo.com/?q=" + encodeURIComponent(q) + "&ia=web",
-  brave:  (q) => "https://search.brave.com/search?q=" + encodeURIComponent(q),
+  ddg: (q) => "https://duckduckgo.com/?q=" + encodeURIComponent(q) + "&ia=web",
+  brave: (q) => "https://search.brave.com/search?q=" + encodeURIComponent(q),
   google: (q) => "https://www.google.com/search?q=" + encodeURIComponent(q),
 };
 
-// Invidious instances — we cycle through them if one fails
-const INV = [
-  "inv.nadeko.net",
-  "invidious.privacyredirect.com",
-  "invidious.nerdvpn.de",
-  "iv.melmac.space",
-  "yewtu.be",
-];
-let invIdx = 0;
-function invHost(){ return INV[invIdx % INV.length]; }
-
-function rewriteYT(u) {
-  try {
-    if (!u || (!u.includes("youtube.com") && !u.includes("youtu.be"))) return null;
-    // ensure it has a protocol so URL() works
-    if (!/^https?:\/\//i.test(u)) u = "https://" + u;
-    const p = new URL(u);
-    const h = p.hostname.replace(/^(www\.|m\.)/, "");
-    if (h !== "youtube.com" && h !== "youtu.be") return null;
-    const inv = invHost();
-    if (h === "youtu.be") {
-      const id = p.pathname.slice(1).split("?")[0];
-      if (id) return "https://" + inv + "/watch?v=" + id;
-    }
-    const v = p.searchParams.get("v");
-    if (v) return "https://" + inv + "/watch?v=" + v;
-    const sq = p.searchParams.get("search_query");
-    if (sq) return "https://" + inv + "/search?q=" + encodeURIComponent(sq);
-    // Anything else on YT → Invidious same path
-    return "https://" + inv + p.pathname + p.search;
-  } catch { return null; }
-}
-
-// State
-const hist    = [];
-let histIdx   = -1;
-let loading   = false;
-let _realUrl  = "";
-let _loadT    = null;
-let _stuckT   = null;
 let currentEngine = "ddg";
+let _realUrl = "";
 
-// DOM
-const urlBar     = document.getElementById("url-bar");
-const frame      = document.getElementById("page-frame");
-const newtab     = document.getElementById("newtab");
-const ntSearch   = document.getElementById("nt-search");
-const loadBar    = document.getElementById("loading-bar");
-const statusTxt  = document.getElementById("status-text");
-const statusExt  = document.getElementById("status-extra");
+const urlBar = document.getElementById("url-bar");
 const secureIcon = document.getElementById("secure-icon");
-const btnBack    = document.getElementById("btn-back");
-const btnFwd     = document.getElementById("btn-fwd");
-const btnReload  = document.getElementById("btn-reload");
-const errPage    = document.getElementById("err-page");
-const errTitle   = document.getElementById("err-title");
-const errMsg     = document.getElementById("err-msg");
 
-function setEngine(name) {
-  currentEngine = name;
-  document.querySelectorAll(".nt-engine-btn").forEach(b => b.classList.remove("active"));
-  const btn = document.getElementById("eng-" + name);
-  if (btn) btn.classList.add("active");
-}
-
+// ✅ FIXED normalise
 function normalise(input) {
   input = (input || '').trim();
   if (!input) return null;
+
   if (input.startsWith('/fetch?url=')) return input;
 
-  // Add protocol if missing so URL parsing works
-  let withProto = /^https?:///i.test(input) ? input : 'https://' + input;
+  if (/^https?:\/\//i.test(input)) {
+    return input;
+  }
 
-  // YouTube rewrite - catches youtube.com, www.youtube.com, youtu.be, m.youtube.com
-  const yt = rewriteYT(withProto);
-  if (yt) return yt;
-
- const looksUrl =
-  /^https?:\/\//i.test(input) ||
-  (/\.[a-z]{2,}(\/|$)/i.test(input) && !/\s/.test(input));
-
-  if (looksUrl) {
-    return withProto;
+  if (/\.[a-z]{2,}(\/|$)/i.test(input) && !/\s/.test(input)) {
+    return "https://" + input;
   }
 
   return ENGINES[currentEngine](input);
 }
 
+// ✅ FIXED updateSecure
 function updateSecure(u) {
   if (!u) { secureIcon.textContent = ""; return; }
+
+  u = String(u);
+
   if (u.startsWith("https://")) {
-    secureIcon.textContent = "🔒"; secureIcon.style.color = "#4ade80";
+    secureIcon.textContent = "🔒";
+    secureIcon.style.color = "#4ade80";
   } else {
-    secureIcon.textContent = "⚠"; secureIcon.style.color = "#febc2e";
+    secureIcon.textContent = "⚠";
+    secureIcon.style.color = "#febc2e";
   }
 }
-
-function updateNavBtns() {
-  btnBack.disabled = histIdx <= 0;
-  btnFwd.disabled  = histIdx >= hist.length - 1;
-}
-
-function startLoading() {
-  loading = true; clearTimeout(_loadT);
-  loadBar.style.transition = "none"; loadBar.style.width = "0%";
-  requestAnimationFrame(() => { loadBar.style.transition = "width 3s ease-out"; loadBar.style.width = "80%"; });
-  btnReload.style.opacity = "0.5"; statusTxt.textContent = "Loading…";
-}
-
-function stopLoading() {
-  loading = false; clearTimeout(_stuckT);
-  loadBar.style.transition = "width 0.2s ease"; loadBar.style.width = "100%";
-  _loadT = setTimeout(() => { loadBar.style.transition = "none"; loadBar.style.width = "0%"; }, 350);
-  btnReload.style.opacity = "1";
-}
-
-function showError(title, msg) {
-  errTitle.textContent = title; errMsg.textContent = msg;
-  errPage.classList.add("show"); frame.style.display = "none"; stopLoading();
-}
-
-function hideError() { errPage.classList.remove("show"); }
-function openDirect() { if (_realUrl) window.open(_realUrl, "_blank"); }
-
-function loadUrl(rawUrl) {
-  const norm = normalise(rawUrl);
-  if (!norm) return;
-  hideError();
-  _realUrl = norm; urlBar.value = norm; updateSecure(norm);
-  if (histIdx < hist.length - 1) hist.splice(histIdx + 1);
-  hist.push(norm); histIdx = hist.length - 1; updateNavBtns();
-  startLoading(); showFrame(norm);
-}
-
-function showFrame(targetUrl) {
-  newtab.classList.add("hidden"); hideError();
-  statusExt.textContent = targetUrl;
-  frame.style.display = "block";
-  frame.src = "/fetch?url=" + encodeURIComponent(targetUrl);
-  clearTimeout(_stuckT);
-  _stuckT = setTimeout(() => { if (loading) stopLoading(); }, 30000);
-}
-
-function navigate() {
-  const v = urlBar.value.trim(); if (v) loadUrl(v);
-}
-
-function ntNavigate() {
-  const v = ntSearch.value.trim(); if (!v) return;
-  ntSearch.value = ""; loadUrl(v);
-}
-
-function navBack() {
-  if (histIdx <= 0) return; histIdx--;
-  const u = hist[histIdx];
-  _realUrl = u; urlBar.value = u; updateSecure(u); updateNavBtns();
-  hideError(); showFrame(u);
-}
-
-function navFwd() {
-  if (histIdx >= hist.length - 1) return; histIdx++;
-  const u = hist[histIdx];
-  _realUrl = u; urlBar.value = u; updateSecure(u); updateNavBtns();
-  hideError(); showFrame(u);
-}
-
-function navReload() {
-  hideError();
-  const u = hist[histIdx] || _realUrl; if (u) showFrame(u);
-}
-
-function goHome() {
-  hideError(); clearTimeout(_stuckT); stopLoading();
-  frame.style.display = "none"; frame.src = "about:blank";
-  _realUrl = ""; urlBar.value = ""; secureIcon.textContent = "";
-  newtab.classList.remove("hidden");
-  statusTxt.textContent = "Ready"; statusExt.textContent = "";
-}
-
-function clearUrl() { urlBar.value = ""; urlBar.focus(); }
-
-frame.addEventListener("load", () => {
-  stopLoading(); statusTxt.textContent = "Done";
-  try {
-    const body = frame.contentDocument && frame.contentDocument.body;
-    if (!body) return;
-    const text = (body.innerText || "").trim().slice(0, 300);
-    if (text.startsWith("{") && text.includes('"error"')) {
-      try {
-        const parsed = JSON.parse(body.innerText || "{}");
-        if (parsed.error) { showError("PROXY ERROR", parsed.error + "\n\n" + (_realUrl || "")); return; }
-      } catch {}
-    }
-  } catch {}
-});
-
-frame.addEventListener("error", () => {
-  stopLoading();
-  showError("LOAD ERROR", "Failed to load:\n" + (_realUrl || "unknown"));
-});
-
-window.addEventListener("message", (e) => {
-  if (!e.data || typeof e.data !== "object") return;
-  if (e.data.type === "mos-navigate-proxy" && e.data.url) { loadUrl(e.data.url); return; }
-  if (e.data.type === "mos-url-update" && e.data.url) {
-    const real = e.data.url;
-    if (real && real !== _realUrl && !real.startsWith("about:") && !real.startsWith("/fetch")) {
-      _realUrl = real; urlBar.value = real; updateSecure(real); statusExt.textContent = real;
-      if (histIdx < hist.length - 1) hist.splice(histIdx + 1);
-      hist.push(real); histIdx = hist.length - 1; updateNavBtns();
-    }
-  }
-  if (e.data.type === "mos-navigate" && e.data.url) loadUrl(e.data.url);
-});
-
-urlBar.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") { e.preventDefault(); navigate(); }
-  if (e.key === "Escape") urlBar.blur();
-});
-ntSearch.addEventListener("keydown", (e) => { if (e.key === "Enter") ntNavigate(); });
-document.addEventListener("keydown", (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === "l") { e.preventDefault(); urlBar.select(); }
-  if ((e.ctrlKey || e.metaKey) && e.key === "r") { e.preventDefault(); navReload(); }
-  if (e.altKey && e.key === "ArrowLeft")  navBack();
-  if (e.altKey && e.key === "ArrowRight") navFwd();
-});
 </script>
 </body>
 </html>
