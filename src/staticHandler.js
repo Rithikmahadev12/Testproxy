@@ -1,54 +1,42 @@
 "use strict";
 
-// ══════════════════════════════════════
-//  MATRIARCHS OS — src/staticHandler.js
-//  Serves files from the /public folder
-// ══════════════════════════════════════
-
 const fs   = require("fs");
 const path = require("path");
 
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
 
 const MIME = {
-  ".html":  "text/html; charset=utf-8",
-  ".css":   "text/css; charset=utf-8",
-  ".js":    "application/javascript; charset=utf-8",
-  ".json":  "application/json",
-  ".png":   "image/png",
-  ".jpg":   "image/jpeg",
-  ".jpeg":  "image/jpeg",
-  ".webp":  "image/webp",
-  ".svg":   "image/svg+xml",
-  ".ico":   "image/x-icon",
-  ".woff":  "font/woff",
-  ".woff2": "font/woff2",
-  ".ttf":   "font/ttf",
-  ".txt":   "text/plain; charset=utf-8",
+  ".html": "text/html; charset=utf-8",
+  ".css":  "text/css; charset=utf-8",
+  ".js":   "application/javascript; charset=utf-8",
+  ".json": "application/json",
+  ".png":  "image/png",
+  ".jpg":  "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".svg":  "image/svg+xml",
+  ".ico":  "image/x-icon",
+  ".woff": "font/woff",
+  ".woff2":"font/woff2",
+  ".ttf":  "font/ttf",
+  ".txt":  "text/plain; charset=utf-8",
+  ".map":  "application/json",
 };
 
-/**
- * Serve a static file from public/.
- * Falls back to index.html for SPA-style routing.
- */
 function serveStatic(req, res) {
-  const rawPath  = req.url.split("?")[0]; // strip query string
+  const rawPath  = (req.url || "/").split("?")[0];
   const safePath = path.normalize(rawPath).replace(/^(\.\.[/\\])+/, "");
-  let   filePath = path.join(PUBLIC_DIR, safePath === "/" ? "index.html" : safePath);
+  const filePath = path.join(PUBLIC_DIR, safePath === "/" ? "index.html" : safePath);
   const ext      = path.extname(filePath).toLowerCase();
 
   fs.stat(filePath, (err, stat) => {
-    if (err || !stat.isFile()) {
-      // SPA fallback
-      filePath = path.join(PUBLIC_DIR, "index.html");
-      fs.stat(filePath, (e2) => {
-        if (e2) {
-          res.writeHead(404, { "Content-Type": "text/plain" });
-          res.end("404 Not Found");
-        } else {
-          res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-          fs.createReadStream(filePath).pipe(res);
-        }
+    if (err || !stat || !stat.isFile()) {
+      // SPA fallback → index.html
+      const idx = path.join(PUBLIC_DIR, "index.html");
+      fs.stat(idx, (e2) => {
+        if (e2) { res.writeHead(404, { "Content-Type": "text/plain" }); res.end("404 Not Found"); return; }
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
+        fs.createReadStream(idx).pipe(res);
       });
       return;
     }
@@ -57,6 +45,7 @@ function serveStatic(req, res) {
     res.writeHead(200, {
       "Content-Type":  mime,
       "Cache-Control": ext === ".html" ? "no-cache" : "public, max-age=3600",
+      "Content-Length": stat.size,
     });
     fs.createReadStream(filePath).pipe(res);
   });
