@@ -129,13 +129,12 @@
       </div>
       <div class="nt-engine-row">
         ENGINE:
-        <button class="nt-engine-btn active" id="eng-ddg"    onclick="setEngine('ddg')">DuckDuckGo</button>
-        <button class="nt-engine-btn"        id="eng-brave"  onclick="setEngine('brave')">Brave</button>
+        <button class="nt-engine-btn active" id="eng-brave"  onclick="setEngine('brave')">Brave</button>
         <button class="nt-engine-btn"        id="eng-google" onclick="setEngine('google')">Google</button>
+        <button class="nt-engine-btn"        id="eng-ddg"    onclick="setEngine('ddg')">DuckDuckGo</button>
       </div>
       <div class="nt-links">
         <div class="nt-link" onclick="loadUrl('https://inv.nadeko.net')">▶ YouTube (Invidious)</div>
-        <div class="nt-link" onclick="loadUrl('https://duckduckgo.com')">🦆 DuckDuckGo</div>
         <div class="nt-link" onclick="loadUrl('https://search.brave.com')">🔍 Brave Search</div>
         <div class="nt-link" onclick="loadUrl('https://www.reddit.com')">📰 Reddit</div>
         <div class="nt-link" onclick="loadUrl('https://news.ycombinator.com')">⚡ Hacker News</div>
@@ -221,7 +220,7 @@ let loading   = false;
 let _realUrl  = "";
 let _loadT    = null;
 let _stuckT   = null;
-let currentEngine = "ddg";
+let currentEngine = "brave";
 
 const urlBar     = document.getElementById("url-bar");
 const frame      = document.getElementById("page-frame");
@@ -255,7 +254,6 @@ function normalise(input) {
   const yt = rewriteYT(withProto);
   if (yt) return yt;
 
-  // Fixed the Regex Unterminated Group Error here
   const looksUrl =
     /^https?:\/\//i.test(input) ||
     (/\.[a-z]{2,}(\/|$)/i.test(input) && !/\s/.test(input));
@@ -382,7 +380,13 @@ frame.addEventListener("error", () => {
 
 window.addEventListener("message", (e) => {
   if (!e.data || typeof e.data !== "object") return;
-  if (e.data.type === "mos-navigate-proxy" && e.data.url) { loadUrl(e.data.url); return; }
+
+  // FIX: navigate-proxy should navigate WITHIN this browser, not reopen the OS window
+  if (e.data.type === "mos-navigate-proxy" && e.data.url) {
+    loadUrl(e.data.url);
+    return;
+  }
+
   if (e.data.type === "mos-url-update" && e.data.url) {
     const real = e.data.url;
     if (real && real !== _realUrl && !real.startsWith("about:") && !real.startsWith("/fetch")) {
@@ -391,6 +395,8 @@ window.addEventListener("message", (e) => {
       hist.push(real); histIdx = hist.length - 1; updateNavBtns();
     }
   }
+
+  // mos-navigate from OS desktop (openBrowser called with a URL)
   if (e.data.type === "mos-navigate" && e.data.url) loadUrl(e.data.url);
 });
 
