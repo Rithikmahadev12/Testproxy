@@ -268,7 +268,7 @@ function normalise(input) {
 
   const looksUrl =
     /^https?:///i.test(input) ||
-    (/.[a-z]{2,}(/|$)/i.test(input) && !/s/.test(input));
+(/\.[a-z]{2,}(\/|$)/i.test(input) && !/\s/.test(input));
 
   if (looksUrl) {
     return withProto;
