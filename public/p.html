@@ -255,22 +255,23 @@ function setEngine(name) {
 }
 
 function normalise(input) {
-  input = (input || "").trim();
+  input = (input || '').trim();
   if (!input) return null;
+  if (input.startsWith('/fetch?url=')) return input;
 
-  // Try YouTube rewrite first
-  const yt = rewriteYT(input);
+  // Add protocol if missing so URL parsing works
+  let withProto = /^https?:///i.test(input) ? input : 'https://' + input;
+
+  // YouTube rewrite - catches youtube.com, www.youtube.com, youtu.be, m.youtube.com
+  const yt = rewriteYT(withProto);
   if (yt) return yt;
 
-  if (input.startsWith("/fetch?url=")) return input;
-
   const looksUrl =
-    /^https?:\/\//i.test(input) ||
-    (/\.[a-z]{2,}(\/|$)/i.test(input) && !/\s/.test(input));
+    /^https?:///i.test(input) ||
+    (/.[a-z]{2,}(/|$)/i.test(input) && !/s/.test(input));
 
   if (looksUrl) {
-    if (!/^https?:\/\//i.test(input)) input = "https://" + input;
-    return input;
+    return withProto;
   }
 
   return ENGINES[currentEngine](input);
