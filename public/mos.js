@@ -754,6 +754,31 @@ function openCinemaPlayer(tmdbId, type, season, episode) {
     updateIframe(PROVIDERS[0].id); // Initial stream launch
 }
 
+ // ═══════════════════════════════════════════════════════
+//  PASTE THIS INTO mos.js right before the line:
+//  window.addEventListener("DOMContentLoaded", ...)
+//  at the very bottom of the file.
+// ═══════════════════════════════════════════════════════
+//
+//  FIX: clicking links inside proxied sites was reopening
+//  the whole Matriarchs OS instead of navigating within
+//  the browser window.
+//
+window.addEventListener("message", (e) => {
+  if (!e.data || typeof e.data !== "object") return;
+  if (e.data.type === "mos-navigate-proxy" && e.data.url) {
+    // Route link clicks back into the existing browser iframe
+    const frame = document.getElementById("galaxy-browser-frame");
+    if (frame) {
+      try {
+        frame.contentWindow.postMessage({ type: "mos-navigate", url: e.data.url }, "*");
+      } catch(err) {}
+    } else {
+      // Browser not open yet — open it with the URL
+      openBrowser(e.data.url);
+    }
+  }
+});
 // ══════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════
