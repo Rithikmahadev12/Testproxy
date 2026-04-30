@@ -290,7 +290,8 @@ async function proxyRequest({ req, res, targetUrl, proxyBase, noRewrite, bodyBuf
         const isMedia  = ct.startsWith("video/") || ct.startsWith("audio/");
         const isBinary = !isHtml && !isCss && !isJs && !isJson && !isSvg && !isXml && !isText;
 
-        const shouldRewrite = !noRewrite && (isHtml || isCss || isJs || isSvg);
+        // Only rewrite HTML, CSS, SVG — NOT JS (shim broke ES modules)
+        const shouldRewrite = !noRewrite && (isHtml || isCss || isSvg);
 
         const cleanH = cleanResponseHeaders(pheads);
 
@@ -309,13 +310,13 @@ async function proxyRequest({ req, res, targetUrl, proxyBase, noRewrite, bodyBuf
 
         setCORS(res);
 
-        // ── STREAMING PASS-THROUGH: binary, media, images ───────────────
-        if ((isBinary || isMedia) && !shouldRewrite) {
+        // ── STREAMING PASS-THROUGH: JS, binary, media, images ──────────
+        // JS must stream unchanged — prepending anything breaks ES modules
+        if (isJs || isBinary || isMedia) {
           const passH = {
             ...cleanH,
             "content-type": rawCT,
           };
-          // Keep content-encoding if it's a binary pass-through
           if (enc) passH["content-encoding"] = enc;
           res.writeHead(status, passH);
           pres.pipe(res);
@@ -353,9 +354,8 @@ async function proxyRequest({ req, res, targetUrl, proxyBase, noRewrite, bodyBuf
             console.warn("[MOS] rewriteCss error:", e.message);
           }
         } else if (isJs) {
-          try { body = buildJsShim(proxyBase, targetUrl.origin, targetUrl.href) + body; } catch(e) {
-            console.warn("[MOS] jsShim error:", e.message);
-          }
+          // DO NOT prepend shim — it breaks ES modules (import/export must be at top)
+          // The HTML runtime script already proxies fetch/XHR for the whole page
         } else if (isSvg) {
           try { body = rewriteHtml(body, targetUrl.href, proxyBase); } catch {}
         }
