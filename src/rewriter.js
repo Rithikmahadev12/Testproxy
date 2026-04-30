@@ -38,14 +38,48 @@ function toProxy(raw, baseUrl, pfx) {
 }
 
 // ── REWRITE HTML ──────────────────────────────────────────────────────────────
+// CRITICAL DESIGN DECISION:
+//   We DO NOT rewrite <a href> or <form action> here.
+//   Those are navigation links — the runtime click/submit interceptor handles them
+//   by sending mos-navigate-proxy to the parent browser, which drives navigation.
+//   If we rewrote them here, the click interceptor would see they already start
+//   with the proxy prefix and bail out, breaking link navigation entirely.
+//
+//   We ONLY rewrite sub-resource URLs: src, srcset, data-src, poster, css url()
+//   and <script src>, <link href> — things that load without user interaction.
 function rewriteHtml(html, targetUrl, proxyBase) {
   const pfx = prefix(proxyBase);
   const rw  = (val) => { try { return toProxy(val, targetUrl, pfx); } catch { return val; } };
 
-  // ── src / href / action / data-* / poster ─────────────────────────────────
+  // ── RESOURCE attrs only (NOT href on <a>, NOT action on <form>) ───────────
+  // Matches: src=, data-src=, data-lazy=, data-lazy-src=, data-original=,
+  //          data-url=, data-image=, poster=, data-background=, data-bg=,
+  //          data-thumb=, data-full=, data-path=
+  // Explicitly EXCLUDES: href (handled by click interceptor), action (handled by submit interceptor)
   html = html.replace(
-    /(\s(?:src|href|action|data-src|data-href|data-lazy|data-lazy-src|data-original|data-url|data-image|poster|data-background|data-bg|data-thumb|data-full|data-link|data-path))=(["'])(.*?)\2/gi,
+    /(\s(?:src|data-src|data-href|data-lazy|data-lazy-src|data-original|data-url|data-image|poster|data-background|data-bg|data-thumb|data-full|data-link|data-path))=(["'])(.*?)\2/gi,
     (_, attr, q, val) => `${attr}=${q}${rw(val)}${q}`
+  );
+
+  // ── <script src=...> — must be proxied so JS loads ────────────────────────
+  html = html.replace(
+    /(<script\b[^>]*?\s)src=(["'])(.*?)\2/gi,
+    (_, pre, q, val) => `${pre}src=${q}${rw(val)}${q}`
+  );
+
+  // ── <link href=...> for stylesheets/fonts — must be proxied ──────────────
+  // But NOT <a href> — only <link> tags (they're in <head>, have rel=)
+  html = html.replace(
+    /(<link\b[^>]*?\s)href=(["'])(.*?)\2/gi,
+    (_, pre, q, val) => `${pre}href=${q}${rw(val)}${q}`
+  );
+
+  // ── <img>, <source>, <video>, <audio>, <iframe>, <frame> src ─────────────
+  // (already covered by the src= rule above, but <iframe src> needs care)
+  // iframe src should be proxied
+  html = html.replace(
+    /(<iframe\b[^>]*?\s)src=(["'])(.*?)\2/gi,
+    (_, pre, q, val) => `${pre}src=${q}${rw(val)}${q}`
   );
 
   // ── srcset ────────────────────────────────────────────────────────────────
@@ -63,7 +97,7 @@ function rewriteHtml(html, targetUrl, proxyBase) {
     }
   );
 
-  // ── url() in style attrs / inline CSS ────────────────────────────────────
+  // ── url() in inline style attributes and <style> blocks ──────────────────
   html = html.replace(
     /url\((["']?)([^"')]+)\1\)/gi,
     (_, q, u) => `url(${q}${rw(u.trim())}${q})`
@@ -75,11 +109,10 @@ function rewriteHtml(html, targetUrl, proxyBase) {
     (_, pre, u) => `${pre}${pfx}${encodeURIComponent(u)}`
   );
 
-  // ── <script type=module src=...> already covered above ───────────────────
-
-  // ── Remove integrity attributes (hashes won't match after rewrite) ────────
-  html = html.replace(/\s+integrity=["'][^"']*["']/gi, "");
-  html = html.replace(/\s+crossorigin=["'][^"']*["']/gi, "");
+  // ── Remove integrity/crossorigin — hashes won't match after rewrite ───────
+  html = html.replace(/\s+integrity=(["'])[^"']*\1/gi, "");
+  html = html.replace(/\s+crossorigin=(["'])[^"']*\1/gi, "");
+  html = html.replace(/\s+crossorigin(?==\s|>|\s)/gi, "");
 
   return html;
 }
