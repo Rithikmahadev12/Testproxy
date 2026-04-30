@@ -266,3 +266,91 @@ body { font-family: var(--sans); color: var(--text); user-select: none; }
 
 /* ══ TOAST ═══════════════════════════════════════════════════════════════════ */
 .kick-toast { position: fixed; top: 44px; right: 16px; background: rgba(11,22,14,0.96); border: 1px solid var(--border-hi); border-radius: 8px; padding: 12px 18px; font-family: var(--mono); font-size: 11px; color: var(--text); letter-spacing: 0.06em; z-index: 9999; animation: bootRise 0.25s ease both; pointer-events: none; }
+/* --- CINEMA APP INTEGRATION (SOVEREIGN EDITION) --- */
+
+.cinema-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #000; /* Keeps the movie area pure black */
+}
+
+.cinema-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 8px 12px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border-hi);
+}
+
+.cinema-select {
+    background: var(--surface);
+    color: var(--gold2);
+    border: 1px solid var(--border-hi);
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 8px;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cinema-select:hover {
+    border-color: var(--gold);
+    background: var(--surface3);
+}
+
+.cinema-select:focus {
+    border-color: var(--gold2);
+    box-shadow: 0 0 8px rgba(163, 201, 168, 0.2);
+}
+
+.cinema-frame {
+    flex-grow: 1;
+    border: none;
+    background: #000;
+}
+
+/* SEARCH DIALOG STYLING */
+#tv-extras {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+#tv-extras input {
+    text-align: center;
+    width: 50%;
+}
+
+/* Ensure prompt inputs match your new theme */
+.cinema-container input.auth-input, 
+#cinema-id-input {
+    background: var(--surface);
+    border: 1px solid var(--border-hi);
+    color: var(--text);
+    padding: 10px;
+    font-family: var(--mono);
+    border-radius: var(--radius);
+    outline: none;
+}
+
+#cinema-id-input:focus {
+    border-color: var(--gold2);
+}
+
+#cinema-launch-btn {
+    background: var(--gold);
+    color: var(--bg);
+    border-radius: var(--radius);
+    font-weight: bold;
+    letter-spacing: 1px;
+    transition: transform 0.1s active;
+}
+
+#cinema-launch-btn:hover {
+    background: var(--gold2);
+    box-shadow: 0 0 15px rgba(122, 158, 126, 0.3);
+}
