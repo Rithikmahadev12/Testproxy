@@ -1,45 +1,45 @@
 "use strict";
 
 // ══════════════════════════════════════
-//  MATRIARCHS OS — server.js
-//  Entry point — HTTP + CONNECT tunnel
+//  MATRIARCHS OS — server.js  v3
 // ══════════════════════════════════════
 
 const http = require("http");
 const net  = require("net");
 const url  = require("url");
 
-const { handleFetch }  = require("./src/proxyHandler");
-const { serveStatic }  = require("./src/staticHandler");
-const { isBlocked }    = require("./src/blocklist");
+const { handleFetch } = require("./src/proxyHandler");
+const { serveStatic } = require("./src/staticHandler");
+const { isBlocked }   = require("./src/blocklist");
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
-// ══════════════════════════════════════
-//  HTTP SERVER
-// ══════════════════════════════════════
-
+// ── HTTP server ───────────────────────────────────────────────────────────────
 const server = http.createServer(async (req, res) => {
-  const pathname = url.parse(req.url).pathname;
+  const pathname = url.parse(req.url || "").pathname || "/";
 
-  // ── CORS preflight ─────────────────────────────────────────────────────────
+  // Global CORS for every response
+  res.setHeader("Access-Control-Allow-Origin",      "*");
+  res.setHeader("Access-Control-Allow-Methods",     "GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD");
+  res.setHeader("Access-Control-Allow-Headers",     "*");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Expose-Headers",    "*");
+
+  // Pre-flight
   if (req.method === "OPTIONS") {
-    res.setHeader("Access-Control-Allow-Origin",  "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD");
-    res.setHeader("Access-Control-Allow-Headers", "*");
     res.writeHead(204);
     res.end();
     return;
   }
 
-  // ── Health check ────────────────────────────────────────────────────────────
+  // Health check
   if (pathname === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "ok", name: "Matriarchs OS", version: "1.0.0" }));
+    res.end(JSON.stringify({ status: "ok", name: "Matriarchs OS", version: "3.0.0", ts: Date.now() }));
     return;
   }
 
-  // ── Proxy endpoint ──────────────────────────────────────────────────────────
+  // Main proxy endpoint
   if (pathname === "/fetch") {
     try {
       await handleFetch(req, res);
@@ -52,17 +52,13 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ── Static files ────────────────────────────────────────────────────────────
+  // Static files
   serveStatic(req, res);
 });
 
-// ══════════════════════════════════════
-//  HTTP CONNECT TUNNEL
-//  Allows HTTPS passthrough for direct proxy usage
-// ══════════════════════════════════════
-
+// ── CONNECT tunnel (HTTPS pass-through) ───────────────────────────────────────
 server.on("connect", (req, clientSocket, head) => {
-  const [hostname, portStr] = req.url.split(":");
+  const [hostname, portStr] = (req.url || "").split(":");
   const port = parseInt(portStr, 10) || 443;
 
   if (isBlocked(hostname)) {
@@ -72,35 +68,35 @@ server.on("connect", (req, clientSocket, head) => {
   }
 
   const remote = net.connect(port, hostname, () => {
-    clientSocket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
+    clientSocket.write("HTTP/1.1 200 Connection Established\r\nProxy-agent: MOS/3\r\n\r\n");
     if (head && head.length) remote.write(head);
     remote.pipe(clientSocket);
     clientSocket.pipe(remote);
   });
 
-  remote.on("error", (err) => {
-    console.error(`[CONNECT] tunnel error → ${hostname}:${port} — ${err.message}`);
-    if (!clientSocket.destroyed) {
-      clientSocket.write("HTTP/1.1 502 Bad Gateway\r\n\r\n");
-      clientSocket.destroy();
-    }
-  });
+  const cleanup = (label) => (err) => {
+    if (err) console.error(`[CONNECT] ${label} err → ${hostname}:${port} — ${(err.message||err)}`);
+    if (!clientSocket.destroyed) clientSocket.destroy();
+    if (!remote.destroyed)       remote.destroy();
+  };
 
-  clientSocket.on("error", () => { if (!remote.destroyed) remote.destroy(); });
-  remote.on("close",       () => { if (!clientSocket.destroyed) clientSocket.destroy(); });
-  clientSocket.on("close", () => { if (!remote.destroyed) remote.destroy(); });
+  remote.on("error",       cleanup("remote"));
+  clientSocket.on("error", cleanup("client"));
+  remote.on("close",       cleanup("remote-close"));
+  clientSocket.on("close", cleanup("client-close"));
 });
 
-// ══════════════════════════════════════
-//  START
-// ══════════════════════════════════════
-
-server.listen(PORT, () => {
-  console.log(`[Matriarchs OS] Server running on port ${PORT}`);
-  console.log(`[Matriarchs OS] Proxy endpoint → /fetch?url=<encoded-url>`);
+// ── Start ─────────────────────────────────────────────────────────────────────
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`[MOS] Matriarchs OS v3 running on port ${PORT}`);
+  console.log(`[MOS] Proxy → /fetch?url=<encoded-url>`);
 });
 
 server.on("error", (err) => {
-  console.error("[Matriarchs OS] Server error:", err.message);
+  console.error("[MOS] Fatal server error:", err.message);
   process.exit(1);
 });
+
+// Prevent uncaught errors from crashing the server
+process.on("uncaughtException",  (e) => console.error("[MOS] uncaughtException:", e.message));
+process.on("unhandledRejection", (e) => console.error("[MOS] unhandledRejection:", e));
