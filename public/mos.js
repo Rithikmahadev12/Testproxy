@@ -10,15 +10,6 @@ const OWNER_PASSWORD = "messi2be";
 const USERS_KEY      = "mos_users";
 const SESSION_KEY    = "mos_session";
 
-// --- CINEMA PROVIDERS CONFIGURATION ---
-const PROVIDERS = [
-  { id: "mapple", name: "MappleTv", isFrench: false, urls: { movie: "https://mappletv.uk/watch/movie/{id}", tv: "https://mappletv.uk/watch/tv/{id}-{season}-{episode}" } },
-  { id: "vidsrcsu", name: "VidSrc.SU", isFrench: false, urls: { movie: "https://vidsrc.su/embed/movie/{id}", tv: "https://vidsrc.su/embed/tv/{id}/{season}/{episode}" } },
-  { id: "vidsrccx", name: "VidSrc.CX", isFrench: false, urls: { movie: "https://vidsrc.cx/embed/movie/{id}", tv: "https://vidsrc.cx/embed/tv/{id}/{season}/{episode}" } },
-  { id: "vidlink", name: "VidLink", isFrench: false, urls: { movie: "https://vidlink.pro/movie/{id}", tv: "https://vidlink.pro/tv/{id}/{season}/{episode}" } },
-  { id: "frembed", name: "Frembed (FR)", isFrench: true, urls: { movie: "https://frembed.icu/api/film.php?id={id}", tv: "https://frembed.icu/api/serie.php?id={id}&sa={season}&epi={episode}" } },
-  { id: "rive", name: "RiveStream", isFrench: false, urls: { movie: "https://rivestream.org/embed?type=movie&id={id}", tv: "https://rivestream.org/embed?type=tv&id={id}&season={season}&episode={episode}" } }
-];
 
 // ── Clock ─────────────────────────────────────────────────────────────────────
 function updateClock() {
@@ -661,97 +652,173 @@ document.addEventListener("click",(e)=>{
   }
 });
 
-/**
- * CINEMA SEARCH: The entry dialog to input TMDB IDs
- */
-function openCinemaSearch() {
-    const content = `
-        <div style="padding:20px; color:var(--text); font-family:var(--sans);">
-            <div style="margin-bottom:15px;">
-                <label style="display:block; font-size:10px; color:var(--gold); letter-spacing:1px; margin-bottom:8px;">TARGET_ID (TMDB)</label>
-                <input id="cinema-id-input" class="auth-input" type="text" placeholder="e.g. 157336" 
-                       style="width:100%; background:var(--surface); border:1px solid var(--border-hi); color:var(--text); padding:10px; border-radius:var(--radius);">
-            </div>
-            
-            <div style="display:flex; gap:20px; margin-bottom:20px; font-size:12px;">
-                <label style="cursor:pointer"><input type="radio" name="ctype" value="movie" checked> MOVIE</label>
-                <label style="cursor:pointer"><input type="radio" name="ctype" value="tv"> TV_SERIES</label>
-            </div>
+// ══════════════════════════════════════════════════════════════════════
+//  COMPLETE CINEMA FIX
+//  In mos.js, find the block that starts with:
+//    "--- CINEMA PROVIDERS CONFIGURATION ---"
+//  and DELETE everything from there down to the end of openCinemaPlayer()
+//  Then paste ALL of this in its place.
+// ══════════════════════════════════════════════════════════════════════
 
-            <div id="tv-extras" style="display:none; gap:10px; margin-bottom:20px;">
-                <div style="flex:1">
-                    <label style="display:block; font-size:9px; color:var(--text-mid);">SEASON</label>
-                    <input id="cinema-s" class="auth-input" type="number" value="1" style="width:100%; text-align:center;">
-                </div>
-                <div style="flex:1">
-                    <label style="display:block; font-size:9px; color:var(--text-mid);">EPISODE</label>
-                    <input id="cinema-e" class="auth-input" type="number" value="1" style="width:100%; text-align:center;">
-                </div>
-            </div>
+// --- CINEMA PROVIDERS ---
+const PROVIDERS = [
+  { id:"vidsrcsu",  name:"VidSrc.SU",   urls:{ movie:"https://vidsrc.su/embed/movie/{id}",              tv:"https://vidsrc.su/embed/tv/{id}/{season}/{episode}" }},
+  { id:"vidsrccx",  name:"VidSrc.CX",   urls:{ movie:"https://vidsrc.cx/embed/movie/{id}",              tv:"https://vidsrc.cx/embed/tv/{id}/{season}/{episode}" }},
+  { id:"vidlink",   name:"VidLink",     urls:{ movie:"https://vidlink.pro/movie/{id}",                   tv:"https://vidlink.pro/tv/{id}/{season}/{episode}" }},
+  { id:"rive",      name:"RiveStream",  urls:{ movie:"https://rivestream.org/embed?type=movie&id={id}", tv:"https://rivestream.org/embed?type=tv&id={id}&season={season}&episode={episode}" }},
+  { id:"mapple",    name:"MappleTv",    urls:{ movie:"https://mappletv.uk/watch/movie/{id}",             tv:"https://mappletv.uk/watch/tv/{id}-{season}-{episode}" }},
+  { id:"frembed",   name:"Frembed(FR)", urls:{ movie:"https://frembed.icu/api/film.php?id={id}",         tv:"https://frembed.icu/api/serie.php?id={id}&sa={season}&epi={episode}" }},
+];
 
-            <button class="auth-btn" id="cinema-launch-btn" 
-                    style="width:100%; background:var(--gold); color:var(--bg); border-radius:var(--radius); border:none; padding:12px; font-weight:bold; cursor:pointer;">
-                INITIALIZE_STREAM
-            </button>
-        </div>
-    `;
-
-    const win = createWindow('CINEMA_INIT', content);
-    
-    // UI Logic for toggling TV fields
-    const radios = win.querySelectorAll('input[name="ctype"]');
-    radios.forEach(r => r.addEventListener('change', (e) => {
-        win.querySelector('#tv-extras').style.display = e.target.value === 'tv' ? 'flex' : 'none';
-    }));
-
-    // Launch Button Logic
-    win.querySelector('#cinema-launch-btn').onclick = () => {
-        const id = win.querySelector('#cinema-id-input').value;
-        const type = win.querySelector('input[name="ctype"]:checked').value;
-        const s = win.querySelector('#cinema-s').value;
-        const e = win.querySelector('#cinema-e').value;
-        
-        if(!id) return alert("ACCESS_DENIED: TMDB_ID REQUIRED");
-        
-        // Remove the search window and open the player
-        const winId = win.id.replace('win-', '');
-        closeWindow(winId); 
-        openCinemaPlayer(id, type, s, e);
-    };
+// ── createWindow helper (was missing — this is why Cinema crashed) ─────────
+function createWindow(title, content) {
+  const id = "win-" + title.toLowerCase().replace(/[^a-z0-9]/g, "-") + "-" + Date.now();
+  const win = document.createElement("div");
+  win.className = "window";
+  win.id = id;
+  win.style.cssText = "top:60px;left:130px;width:660px;height:520px";
+  win.innerHTML = `
+    <div class="window-titlebar">
+      <div class="window-controls">
+        <button class="wbtn close" onclick="closeWindow('${id}')"></button>
+        <button class="wbtn min"   onclick="minimizeWindow('${id}')"></button>
+        <button class="wbtn max"   onclick="maximizeWindow('${id}')"></button>
+      </div>
+      <span class="window-title">${title}</span>
+    </div>
+    <div class="window-body" style="overflow:auto">${content}</div>`;
+  document.getElementById("windows").appendChild(win);
+  makeDraggable(win);
+  bringToFront(id);
+  openWindows[id] = { title: title, iconId: "search" };
+  refreshTaskbar();
+  return win;
 }
 
-/**
- * CINEMA PLAYER: The actual video player window
- */
-function openCinemaPlayer(tmdbId, type, season, episode) {
-    const optionsHtml = PROVIDERS.map(p => 
-        `<option value="${p.id}">${p.name.toUpperCase()}</option>`
-    ).join('');
+// ── Cinema Search dialog ───────────────────────────────────────────────────
+function openCinemaSearch() {
+  const content = `
+    <div style="padding:24px;color:var(--text);font-family:var(--sans);display:flex;flex-direction:column;gap:18px;">
+      <div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:1px;margin-bottom:8px;">TARGET_ID (TMDB)</div>
+        <input id="cinema-id-input" type="text" placeholder="e.g. 157336"
+          style="width:100%;background:var(--surface3);border:1px solid var(--border-hi);color:var(--text);padding:11px 14px;border-radius:7px;font-family:var(--mono);font-size:13px;outline:none;user-select:text;"/>
+      </div>
 
-    const content = `
-        <div class="cinema-container">
-            <div class="cinema-controls">
-                <select id="provider-select" class="cinema-select">${optionsHtml}</select>
-                <div style="font-family:var(--mono); font-size:10px; color:var(--text-mid); text-transform:uppercase;">
-                    LINK: ${tmdbId} ${type === 'tv' ? `// S${season}:E${episode}` : ''}
-                </div>
-            </div>
-            <iframe id="cinema-frame" class="cinema-frame" allowfullscreen src=""></iframe>
+      <div style="display:flex;gap:24px;font-size:13px;font-family:var(--mono);">
+        <label style="cursor:pointer;display:flex;align-items:center;gap:7px;">
+          <input type="radio" name="ctype" value="movie" checked style="accent-color:var(--gold)"/> MOVIE
+        </label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:7px;">
+          <input type="radio" name="ctype" value="tv" style="accent-color:var(--gold)"/> TV_SERIES
+        </label>
+      </div>
+
+      <div id="tv-extras" style="display:none;gap:12px;flex-direction:row;">
+        <div style="flex:1;">
+          <div style="font-family:var(--mono);font-size:9px;color:var(--text-mid);margin-bottom:5px;">SEASON</div>
+          <input id="cinema-s" type="number" value="1"
+            style="width:100%;background:var(--surface3);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:6px;font-family:var(--mono);font-size:14px;outline:none;text-align:center;"/>
         </div>
-    `;
+        <div style="flex:1;">
+          <div style="font-family:var(--mono);font-size:9px;color:var(--text-mid);margin-bottom:5px;">EPISODE</div>
+          <input id="cinema-e" type="number" value="1"
+            style="width:100%;background:var(--surface3);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:6px;font-family:var(--mono);font-size:14px;outline:none;text-align:center;"/>
+        </div>
+      </div>
 
-    const win = createWindow('NEURAL_STREAM', content);
-    const select = win.querySelector('#provider-select');
-    const iframe = win.querySelector('#cinema-frame');
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);line-height:1.9;">
+        Find TMDB IDs at themoviedb.org — search your movie/show, the ID is in the URL.
+      </div>
 
-    const updateIframe = (pId) => {
-        const p = PROVIDERS.find(x => x.id === pId);
-        const url = type === 'tv' ? p.urls.tv : p.urls.movie;
-        iframe.src = url.replace('{id}', tmdbId).replace('{season}', season).replace('{episode}', episode);
-    };
+      <button id="cinema-launch-btn"
+        style="width:100%;background:var(--gold);color:#000;border:none;border-radius:7px;padding:13px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.14em;cursor:pointer;transition:background .15s;">
+        ▶ INITIALIZE_STREAM
+      </button>
+    </div>`;
 
-    select.onchange = (e) => updateIframe(e.target.value);
-    updateIframe(PROVIDERS[0].id); // Initial stream launch
+  const win = createWindow("CINEMA_INIT", content);
+
+  // Toggle TV season/episode fields
+  win.querySelectorAll('input[name="ctype"]').forEach(r => {
+    r.addEventListener("change", (e) => {
+      win.querySelector("#tv-extras").style.display = e.target.value === "tv" ? "flex" : "none";
+    });
+  });
+
+  // Launch
+  win.querySelector("#cinema-launch-btn").onclick = () => {
+    const id   = win.querySelector("#cinema-id-input").value.trim();
+    const type = win.querySelector('input[name="ctype"]:checked').value;
+    const s    = win.querySelector("#cinema-s").value  || "1";
+    const ep   = win.querySelector("#cinema-e").value  || "1";
+    if (!id) { alert("ACCESS_DENIED: TMDB_ID REQUIRED"); return; }
+    closeWindow(win.id);
+    openCinemaPlayer(id, type, s, ep);
+  };
+
+  // Enter key shortcut
+  win.querySelector("#cinema-id-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") win.querySelector("#cinema-launch-btn").click();
+  });
+}
+
+// ── Cinema Player ──────────────────────────────────────────────────────────
+function openCinemaPlayer(tmdbId, type, season, episode) {
+  const winId = "win-cinema-player";
+  // Close any existing player
+  const existing = document.getElementById(winId);
+  if (existing) existing.remove();
+
+  const optionsHtml = PROVIDERS.map(p =>
+    `<option value="${p.id}">${p.name.toUpperCase()}</option>`
+  ).join("");
+
+  const label = type === "tv"
+    ? `ID:${tmdbId} // S${season}:E${episode}`
+    : `ID:${tmdbId}`;
+
+  const content = `
+    <div class="cinema-container" style="display:flex;flex-direction:column;height:100%;">
+      <div style="display:flex;align-items:center;gap:12px;padding:7px 12px;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0;">
+        <select id="provider-select"
+          style="background:var(--surface3);color:var(--gold2);border:1px solid var(--border-hi);border-radius:5px;font-family:var(--mono);font-size:11px;padding:4px 10px;outline:none;cursor:pointer;">
+          ${optionsHtml}
+        </select>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text-mid);text-transform:uppercase;">${label}</span>
+      </div>
+      <iframe id="cinema-frame"
+        style="flex:1;border:none;width:100%;background:#000;"
+        allowfullscreen src="about:blank"
+        allow="autoplay; fullscreen; encrypted-media; picture-in-picture">
+      </iframe>
+    </div>`;
+
+  const win = createWindow("NEURAL_STREAM", content);
+  win.id = winId; // override ID so we can close it cleanly
+  // Update titlebar close button to use new id
+  win.querySelector(".wbtn.close").setAttribute("onclick", `closeWindow('${winId}')`);
+  win.querySelector(".wbtn.min").setAttribute("onclick",   `minimizeWindow('${winId}')`);
+  win.querySelector(".wbtn.max").setAttribute("onclick",   `maximizeWindow('${winId}')`);
+  win.style.cssText = "top:40px;left:80px;width:800px;height:560px";
+  openWindows[winId] = { title: "Cinema Player", iconId: "search" };
+  refreshTaskbar();
+
+  const select = win.querySelector("#provider-select");
+  const iframe = win.querySelector("#cinema-frame");
+
+  function updateStream(pId) {
+    const p = PROVIDERS.find(x => x.id === pId);
+    if (!p) return;
+    const url = (type === "tv" ? p.urls.tv : p.urls.movie)
+      .replace("{id}", tmdbId)
+      .replace("{season}", season)
+      .replace("{episode}", episode);
+    iframe.src = url;
+  }
+
+  select.onchange = (e) => updateStream(e.target.value);
+  updateStream(PROVIDERS[0].id);
 }
 
  // ═══════════════════════════════════════════════════════
