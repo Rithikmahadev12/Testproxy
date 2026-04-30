@@ -185,6 +185,66 @@ function showToast(msg) {
 }
 
 // ══════════════════════════════════════
+//  WINDOW MANAGEMENT
+// ══════════════════════════════════════
+let zTop=10;
+const openWindows={};
+
+function bringToFront(id){const w=document.getElementById(id);if(w)w.style.zIndex=++zTop;refreshTaskbar();}
+function closeWindow(id){
+  const w=document.getElementById(id);if(!w)return;
+  w.style.opacity="0";w.style.transform="scale(0.9)";w.style.transition="opacity 0.2s,transform 0.2s";
+  setTimeout(()=>{w.remove();delete openWindows[id];refreshTaskbar();},200);
+}
+function minimizeWindow(id){const w=document.getElementById(id);if(!w)return;w.classList.toggle("minimized");refreshTaskbar();}
+function maximizeWindow(id){
+  const w=document.getElementById(id);if(!w)return;
+  if(w.dataset.maximized){
+    w.style.top=w.dataset.origTop;w.style.left=w.dataset.origLeft;
+    w.style.width=w.dataset.origW;w.style.height=w.dataset.origH;
+    delete w.dataset.maximized;
+  }else{
+    w.dataset.origTop=w.style.top;w.dataset.origLeft=w.style.left;
+    w.dataset.origW=w.style.width;w.dataset.origH=w.style.height;
+    w.style.top="32px";w.style.left="0";w.style.width="100vw";w.style.height="calc(100vh - 32px - 44px)";
+    w.dataset.maximized="1";
+  }
+}
+function makeDraggable(win){
+  const bar=win.querySelector(".window-titlebar");if(!bar)return;
+  let ox=0,oy=0,dragging=false;
+  bar.addEventListener("mousedown",(e)=>{if(e.target.classList.contains("wbtn")||win.dataset.maximized)return;dragging=true;ox=e.clientX-win.offsetLeft;oy=e.clientY-win.offsetTop;bringToFront(win.id);e.preventDefault();});
+  document.addEventListener("mousemove",(e)=>{if(!dragging)return;win.style.left=(e.clientX-ox)+"px";win.style.top=(e.clientY-oy)+"px";});
+  document.addEventListener("mouseup",()=>{dragging=false;});
+  win.addEventListener("mousedown",()=>bringToFront(win.id));
+}
+
+// ── Generic createWindow helper ───────────────────────────────────────────────
+function createWindow(title, content) {
+  const id = "win-" + title.toLowerCase().replace(/[^a-z0-9]/g, "-") + "-" + Date.now();
+  const win = document.createElement("div");
+  win.className = "window";
+  win.id = id;
+  win.style.cssText = "top:60px;left:130px;width:660px;height:520px";
+  win.innerHTML = `
+    <div class="window-titlebar">
+      <div class="window-controls">
+        <button class="wbtn close" onclick="closeWindow('${id}')"></button>
+        <button class="wbtn min"   onclick="minimizeWindow('${id}')"></button>
+        <button class="wbtn max"   onclick="maximizeWindow('${id}')"></button>
+      </div>
+      <span class="window-title">${escHtml(title)}</span>
+    </div>
+    <div class="window-body" style="overflow:auto">${content}</div>`;
+  document.getElementById("windows").appendChild(win);
+  makeDraggable(win);
+  bringToFront(id);
+  openWindows[id] = { title: title, iconId: "search" };
+  refreshTaskbar();
+  return win;
+}
+
+// ══════════════════════════════════════
 //  BROWSER — loads p.html in an iframe
 // ══════════════════════════════════════
 
@@ -575,41 +635,6 @@ function adminUnban(u){const users=getUsers(),user=users.find(x=>x.username===u)
 function adminDelete(u){if(!confirm(`Delete "${u}"?`))return;saveUsers(getUsers().filter(x=>x.username!==u));showToast(u+" deleted.");renderAdminPanel();}
 
 // ══════════════════════════════════════
-//  WINDOW MANAGEMENT
-// ══════════════════════════════════════
-let zTop=10;
-const openWindows={};
-
-function bringToFront(id){const w=document.getElementById(id);if(w)w.style.zIndex=++zTop;refreshTaskbar();}
-function closeWindow(id){
-  const w=document.getElementById(id);if(!w)return;
-  w.style.opacity="0";w.style.transform="scale(0.9)";w.style.transition="opacity 0.2s,transform 0.2s";
-  setTimeout(()=>{w.remove();delete openWindows[id];refreshTaskbar();},200);
-}
-function minimizeWindow(id){const w=document.getElementById(id);if(!w)return;w.classList.toggle("minimized");refreshTaskbar();}
-function maximizeWindow(id){
-  const w=document.getElementById(id);if(!w)return;
-  if(w.dataset.maximized){
-    w.style.top=w.dataset.origTop;w.style.left=w.dataset.origLeft;
-    w.style.width=w.dataset.origW;w.style.height=w.dataset.origH;
-    delete w.dataset.maximized;
-  }else{
-    w.dataset.origTop=w.style.top;w.dataset.origLeft=w.style.left;
-    w.dataset.origW=w.style.width;w.dataset.origH=w.style.height;
-    w.style.top="32px";w.style.left="0";w.style.width="100vw";w.style.height="calc(100vh - 32px - 44px)";
-    w.dataset.maximized="1";
-  }
-}
-function makeDraggable(win){
-  const bar=win.querySelector(".window-titlebar");if(!bar)return;
-  let ox=0,oy=0,dragging=false;
-  bar.addEventListener("mousedown",(e)=>{if(e.target.classList.contains("wbtn")||win.dataset.maximized)return;dragging=true;ox=e.clientX-win.offsetLeft;oy=e.clientY-win.offsetTop;bringToFront(win.id);e.preventDefault();});
-  document.addEventListener("mousemove",(e)=>{if(!dragging)return;win.style.left=(e.clientX-ox)+"px";win.style.top=(e.clientY-oy)+"px";});
-  document.addEventListener("mouseup",()=>{dragging=false;});
-  win.addEventListener("mousedown",()=>bringToFront(win.id));
-}
-
-// ══════════════════════════════════════
 //  TASKBAR
 // ══════════════════════════════════════
 function refreshTaskbar(){
@@ -652,15 +677,10 @@ document.addEventListener("click",(e)=>{
   }
 });
 
-// ══════════════════════════════════════════════════════════════════════
-//  COMPLETE CINEMA FIX
-//  In mos.js, find the block that starts with:
-//    "--- CINEMA PROVIDERS CONFIGURATION ---"
-//  and DELETE everything from there down to the end of openCinemaPlayer()
-//  Then paste ALL of this in its place.
-// ══════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════
+//  CINEMA
+// ══════════════════════════════════════
 
-// --- CINEMA PROVIDERS ---
 const PROVIDERS = [
   { id:"vidsrcsu",  name:"VidSrc.SU",   urls:{ movie:"https://vidsrc.su/embed/movie/{id}",              tv:"https://vidsrc.su/embed/tv/{id}/{season}/{episode}" }},
   { id:"vidsrccx",  name:"VidSrc.CX",   urls:{ movie:"https://vidsrc.cx/embed/movie/{id}",              tv:"https://vidsrc.cx/embed/tv/{id}/{season}/{episode}" }},
@@ -670,32 +690,6 @@ const PROVIDERS = [
   { id:"frembed",   name:"Frembed(FR)", urls:{ movie:"https://frembed.icu/api/film.php?id={id}",         tv:"https://frembed.icu/api/serie.php?id={id}&sa={season}&epi={episode}" }},
 ];
 
-// ── createWindow helper (was missing — this is why Cinema crashed) ─────────
-function createWindow(title, content) {
-  const id = "win-" + title.toLowerCase().replace(/[^a-z0-9]/g, "-") + "-" + Date.now();
-  const win = document.createElement("div");
-  win.className = "window";
-  win.id = id;
-  win.style.cssText = "top:60px;left:130px;width:660px;height:520px";
-  win.innerHTML = `
-    <div class="window-titlebar">
-      <div class="window-controls">
-        <button class="wbtn close" onclick="closeWindow('${id}')"></button>
-        <button class="wbtn min"   onclick="minimizeWindow('${id}')"></button>
-        <button class="wbtn max"   onclick="maximizeWindow('${id}')"></button>
-      </div>
-      <span class="window-title">${title}</span>
-    </div>
-    <div class="window-body" style="overflow:auto">${content}</div>`;
-  document.getElementById("windows").appendChild(win);
-  makeDraggable(win);
-  bringToFront(id);
-  openWindows[id] = { title: title, iconId: "search" };
-  refreshTaskbar();
-  return win;
-}
-
-// ── Cinema Search dialog ───────────────────────────────────────────────────
 function openCinemaSearch() {
   const content = `
     <div style="padding:24px;color:var(--text);font-family:var(--sans);display:flex;flex-direction:column;gap:18px;">
@@ -704,7 +698,6 @@ function openCinemaSearch() {
         <input id="cinema-id-input" type="text" placeholder="e.g. 157336"
           style="width:100%;background:var(--surface3);border:1px solid var(--border-hi);color:var(--text);padding:11px 14px;border-radius:7px;font-family:var(--mono);font-size:13px;outline:none;user-select:text;"/>
       </div>
-
       <div style="display:flex;gap:24px;font-size:13px;font-family:var(--mono);">
         <label style="cursor:pointer;display:flex;align-items:center;gap:7px;">
           <input type="radio" name="ctype" value="movie" checked style="accent-color:var(--gold)"/> MOVIE
@@ -713,7 +706,6 @@ function openCinemaSearch() {
           <input type="radio" name="ctype" value="tv" style="accent-color:var(--gold)"/> TV_SERIES
         </label>
       </div>
-
       <div id="tv-extras" style="display:none;gap:12px;flex-direction:row;">
         <div style="flex:1;">
           <div style="font-family:var(--mono);font-size:9px;color:var(--text-mid);margin-bottom:5px;">SEASON</div>
@@ -726,11 +718,9 @@ function openCinemaSearch() {
             style="width:100%;background:var(--surface3);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:6px;font-family:var(--mono);font-size:14px;outline:none;text-align:center;"/>
         </div>
       </div>
-
       <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);line-height:1.9;">
         Find TMDB IDs at themoviedb.org — search your movie/show, the ID is in the URL.
       </div>
-
       <button id="cinema-launch-btn"
         style="width:100%;background:var(--gold);color:#000;border:none;border-radius:7px;padding:13px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.14em;cursor:pointer;transition:background .15s;">
         ▶ INITIALIZE_STREAM
@@ -739,14 +729,12 @@ function openCinemaSearch() {
 
   const win = createWindow("CINEMA_INIT", content);
 
-  // Toggle TV season/episode fields
   win.querySelectorAll('input[name="ctype"]').forEach(r => {
     r.addEventListener("change", (e) => {
       win.querySelector("#tv-extras").style.display = e.target.value === "tv" ? "flex" : "none";
     });
   });
 
-  // Launch
   win.querySelector("#cinema-launch-btn").onclick = () => {
     const id   = win.querySelector("#cinema-id-input").value.trim();
     const type = win.querySelector('input[name="ctype"]:checked').value;
@@ -757,16 +745,13 @@ function openCinemaSearch() {
     openCinemaPlayer(id, type, s, ep);
   };
 
-  // Enter key shortcut
   win.querySelector("#cinema-id-input").addEventListener("keydown", e => {
     if (e.key === "Enter") win.querySelector("#cinema-launch-btn").click();
   });
 }
 
-// ── Cinema Player ──────────────────────────────────────────────────────────
 function openCinemaPlayer(tmdbId, type, season, episode) {
   const winId = "win-cinema-player";
-  // Close any existing player
   const existing = document.getElementById(winId);
   if (existing) existing.remove();
 
@@ -779,7 +764,7 @@ function openCinemaPlayer(tmdbId, type, season, episode) {
     : `ID:${tmdbId}`;
 
   const content = `
-    <div class="cinema-container" style="display:flex;flex-direction:column;height:100%;">
+    <div style="display:flex;flex-direction:column;height:100%;">
       <div style="display:flex;align-items:center;gap:12px;padding:7px 12px;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0;">
         <select id="provider-select"
           style="background:var(--surface3);color:var(--gold2);border:1px solid var(--border-hi);border-radius:5px;font-family:var(--mono);font-size:11px;padding:4px 10px;outline:none;cursor:pointer;">
@@ -795,8 +780,9 @@ function openCinemaPlayer(tmdbId, type, season, episode) {
     </div>`;
 
   const win = createWindow("NEURAL_STREAM", content);
-  win.id = winId; // override ID so we can close it cleanly
-  // Update titlebar close button to use new id
+  // Reassign the stable ID so we can find/close it later
+  delete openWindows[win.id];
+  win.id = winId;
   win.querySelector(".wbtn.close").setAttribute("onclick", `closeWindow('${winId}')`);
   win.querySelector(".wbtn.min").setAttribute("onclick",   `minimizeWindow('${winId}')`);
   win.querySelector(".wbtn.max").setAttribute("onclick",   `maximizeWindow('${winId}')`);
@@ -821,31 +807,23 @@ function openCinemaPlayer(tmdbId, type, season, episode) {
   updateStream(PROVIDERS[0].id);
 }
 
- // ═══════════════════════════════════════════════════════
-//  PASTE THIS INTO mos.js right before the line:
-//  window.addEventListener("DOMContentLoaded", ...)
-//  at the very bottom of the file.
-// ═══════════════════════════════════════════════════════
-//
-//  FIX: clicking links inside proxied sites was reopening
-//  the whole Matriarchs OS instead of navigating within
-//  the browser window.
-//
+// ══════════════════════════════════════
+//  PROXY LINK MESSAGE HANDLER
+// ══════════════════════════════════════
 window.addEventListener("message", (e) => {
   if (!e.data || typeof e.data !== "object") return;
   if (e.data.type === "mos-navigate-proxy" && e.data.url) {
-    // Route link clicks back into the existing browser iframe
     const frame = document.getElementById("galaxy-browser-frame");
     if (frame) {
       try {
         frame.contentWindow.postMessage({ type: "mos-navigate", url: e.data.url }, "*");
       } catch(err) {}
     } else {
-      // Browser not open yet — open it with the URL
       openBrowser(e.data.url);
     }
   }
 });
+
 // ══════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════
