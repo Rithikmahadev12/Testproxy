@@ -1,72 +1,66 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Browser</title>
+  <title>MOS Browser</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
   <style>
     :root {
-      --bg:       #07100a;
-      --surface:  #0b160e;
-      --surface2: #111f14;
-      --surface3: #182b1c;
-      --gold:     #7a9e7e;
-      --gold2:    #a3c9a8;
-      --text:     #ceefd4;
-      --text-dim: #4a6650;
-      --text-mid: #8aaa90;
-      --border:   rgba(122,158,126,0.12);
-      --border-hi:rgba(122,158,126,0.28);
-      --mono:     'Space Mono', monospace;
-      --sans:     'Space Grotesk', sans-serif;
-      --red:      #ff6b6b;
+      --bg:        #07100a;
+      --surface:   #0b160e;
+      --surface2:  #111f14;
+      --surface3:  #182b1c;
+      --gold:      #7a9e7e;
+      --gold2:     #a3c9a8;
+      --text:      #ceefd4;
+      --text-dim:  #4a6650;
+      --text-mid:  #8aaa90;
+      --border:    rgba(122,158,126,0.12);
+      --border-hi: rgba(122,158,126,0.28);
+      --red:       #ff6b6b;
+      --mono:      'Space Mono', monospace;
+      --sans:      'Space Grotesk', sans-serif;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { width: 100%; height: 100%; background: var(--bg); font-family: var(--sans); color: var(--text); overflow: hidden; }
 
-    #layout { display: flex; flex-direction: column; width: 100%; height: 100%; }
-    #content-area { flex: 1; position: relative; background: var(--bg); overflow: hidden; }
-    #page-frame { width: 100%; height: 100%; border: none; display: block; background: #fff; }
+    #layout       { display: flex; flex-direction: column; width: 100%; height: 100%; }
+    #toolbar      { display: flex; align-items: center; gap: 5px; padding: 6px 10px; background: var(--surface2); border-bottom: 1px solid var(--border); height: 44px; flex-shrink: 0; }
+    #content-area { flex: 1; position: relative; background: #fff; overflow: hidden; }
+    #statusbar    { height: 22px; background: var(--surface2); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px; gap: 10px; flex-shrink: 0; }
 
-    /* ── Toolbar ────────────────────────────────────────────── */
-    #toolbar {
-      display: flex; align-items: center; gap: 5px;
-      padding: 6px 10px;
-      background: var(--surface2);
-      border-bottom: 1px solid var(--border);
-      height: 44px; flex-shrink: 0;
-    }
+    /* ── Toolbar buttons ─────────────────────────────────────────────────── */
     .tb-btn {
       width: 30px; height: 30px; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
       border: 1px solid var(--border); border-radius: 6px;
       background: transparent; color: var(--text-dim);
-      cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s;
+      cursor: pointer; transition: background .12s, color .12s, border-color .12s;
     }
     .tb-btn:hover:not(:disabled) { background: var(--surface3); color: var(--text); border-color: var(--border-hi); }
-    .tb-btn:active:not(:disabled) { transform: scale(0.93); }
-    .tb-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+    .tb-btn:active:not(:disabled){ transform: scale(.93); }
+    .tb-btn:disabled              { opacity: .3; cursor: not-allowed; }
 
+    /* ── URL bar ──────────────────────────────────────────────────────────── */
     #url-wrap {
       flex: 1; display: flex; align-items: center; gap: 0;
       background: var(--surface3); border: 1px solid var(--border);
       border-radius: 7px; padding: 0 10px; height: 30px;
-      transition: border-color 0.15s;
+      transition: border-color .15s;
     }
     #url-wrap:focus-within { border-color: var(--border-hi); }
-    #secure-icon { font-size: 11px; margin-right: 6px; flex-shrink: 0; }
+    #secure-icon { font-size: 11px; margin-right: 5px; flex-shrink: 0; }
     #url-bar {
       flex: 1; background: transparent; border: none; outline: none;
       color: var(--text); font-family: var(--mono); font-size: 11px;
-      letter-spacing: 0.04em; user-select: text; min-width: 0;
+      letter-spacing: .04em; user-select: text; min-width: 0;
     }
     #url-bar::placeholder { color: var(--text-dim); }
     #clear-btn {
       background: transparent; border: none; color: var(--text-dim);
-      cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px;
-      display: none; flex-shrink: 0;
+      cursor: pointer; font-size: 15px; line-height: 1; padding: 0 2px; display: none;
     }
     #clear-btn:hover { color: var(--text); }
     #url-bar:not(:placeholder-shown) ~ #clear-btn { display: block; }
@@ -74,73 +68,74 @@
       padding: 0 14px; height: 30px; flex-shrink: 0;
       background: var(--gold); color: #000; border: none; border-radius: 6px;
       font-family: var(--mono); font-size: 10px; font-weight: 700;
-      letter-spacing: 0.1em; cursor: pointer; transition: background 0.12s;
+      letter-spacing: .1em; cursor: pointer; transition: background .12s;
     }
     #go-btn:hover { background: var(--gold2); }
 
-    /* ── New Tab ────────────────────────────────────────────── */
+    /* ── Loading bar ──────────────────────────────────────────────────────── */
+    #loading-bar {
+      position: absolute; top: 0; left: 0; height: 2px; width: 0%;
+      background: linear-gradient(90deg, var(--gold), var(--gold2));
+      transition: width .25s ease; z-index: 10; pointer-events: none;
+      box-shadow: 0 0 8px rgba(122,158,126,.6);
+    }
+
+    /* ── New tab / home screen ────────────────────────────────────────────── */
     #newtab {
-      position: absolute; inset: 0;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 22px; background: var(--bg); z-index: 2;
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 22px;
+      background: var(--bg); z-index: 5;
     }
     #newtab.hidden { display: none; }
-    .nt-logo { color: var(--gold); }
-    .nt-title { font-family: var(--mono); font-size: 20px; font-weight: 700; letter-spacing: 0.22em; color: var(--text); }
+    .nt-logo  { color: var(--gold); }
+    .nt-title { font-family: var(--mono); font-size: 20px; font-weight: 700; letter-spacing: .22em; color: var(--text); }
     .nt-title span { color: var(--gold); }
-    .nt-search-wrap { display: flex; gap: 8px; width: 480px; max-width: 90vw; }
+    .nt-sub   { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: .12em; margin-top: -12px; }
+    .nt-search-wrap { display: flex; gap: 8px; width: 500px; max-width: 92vw; }
     #nt-search {
       flex: 1; background: var(--surface2); border: 1px solid var(--border-hi);
       border-radius: 8px; padding: 12px 16px; color: var(--text);
       font-family: var(--sans); font-size: 14px; outline: none;
-      transition: border-color 0.15s; user-select: text;
+      transition: border-color .15s; user-select: text;
     }
     #nt-search:focus { border-color: var(--gold); }
     #nt-search::placeholder { color: var(--text-dim); }
     #nt-go {
       background: var(--gold); color: #000; border: none; border-radius: 8px;
       padding: 0 22px; font-family: var(--mono); font-size: 11px; font-weight: 700;
-      cursor: pointer; letter-spacing: 0.1em; transition: background 0.12s;
+      cursor: pointer; letter-spacing: .1em; transition: background .12s;
     }
     #nt-go:hover { background: var(--gold2); }
-    .nt-quick-links { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 480px; }
+    .nt-links { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 520px; }
     .nt-link {
       background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
       padding: 10px 16px; font-family: var(--mono); font-size: 10px; color: var(--text-mid);
-      cursor: pointer; letter-spacing: 0.08em; transition: background 0.12s, color 0.12s, border-color 0.12s;
+      cursor: pointer; letter-spacing: .08em; transition: background .12s, color .12s, border-color .12s;
     }
     .nt-link:hover { background: var(--surface3); color: var(--text); border-color: var(--border-hi); }
-    .nt-sub { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 0.12em; margin-top: -8px; }
 
-    /* ── Loading bar ────────────────────────────────────────── */
-    #loading-bar {
-      position: absolute; top: 0; left: 0;
-      height: 2px; width: 0%;
-      background: linear-gradient(90deg, var(--gold), var(--gold2));
-      transition: width 0.25s ease; z-index: 10; pointer-events: none;
-      box-shadow: 0 0 8px rgba(122,158,126,0.6);
+    /* ── Page frame ───────────────────────────────────────────────────────── */
+    #page-frame {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      border: none; display: none; background: #fff;
     }
 
-    /* ── Error page ─────────────────────────────────────────── */
-    #error-page {
+    /* ── Error page ───────────────────────────────────────────────────────── */
+    #err-page {
       position: absolute; inset: 0; display: none;
       flex-direction: column; align-items: center; justify-content: center;
-      gap: 12px; background: var(--bg); z-index: 5;
+      gap: 12px; background: var(--bg); z-index: 6;
     }
-    #error-page.visible { display: flex; }
-    .err-icon  { font-size: 40px; }
-    .err-title { font-family: var(--mono); font-size: 16px; color: var(--red); letter-spacing: 0.1em; }
-    .err-msg   { font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: 0.06em; text-align: center; max-width: 380px; line-height: 1.8; }
-    .err-btn   { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 20px; font-family: var(--mono); font-size: 10px; color: var(--text-mid); cursor: pointer; letter-spacing: 0.08em; transition: all 0.15s; margin-top: 4px; }
+    #err-page.show { display: flex; }
+    .err-ico   { font-size: 42px; }
+    .err-title { font-family: var(--mono); font-size: 16px; color: var(--red); letter-spacing: .1em; }
+    .err-msg   { font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: .04em; text-align: center; max-width: 420px; line-height: 1.9; white-space: pre-line; }
+    .err-btn   { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 20px; font-family: var(--mono); font-size: 10px; color: var(--text-mid); cursor: pointer; letter-spacing: .08em; transition: all .15s; }
     .err-btn:hover { background: var(--surface3); color: var(--text); border-color: var(--border-hi); }
 
-    /* ── Status bar ─────────────────────────────────────────── */
-    #statusbar {
-      height: 22px; background: var(--surface2); border-top: 1px solid var(--border);
-      display: flex; align-items: center; padding: 0 12px; gap: 10px; flex-shrink: 0;
-    }
-    #status-text  { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 0.05em; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #status-extra { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 0.05em; flex-shrink: 0; }
+    /* ── Status bar ───────────────────────────────────────────────────────── */
+    #status-text  { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: .04em; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #status-extra { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: .04em; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -166,10 +161,9 @@
 
     <div id="url-wrap">
       <span id="secure-icon"></span>
-      <input id="url-bar" type="text" placeholder="Search Brave or enter address…" spellcheck="false" autocomplete="off"/>
+      <input id="url-bar" type="text" placeholder="Search or enter address…" spellcheck="false" autocomplete="off"/>
       <button id="clear-btn" onclick="clearUrl()" tabindex="-1">×</button>
     </div>
-
     <button id="go-btn" onclick="navigate()">GO</button>
   </div>
 
@@ -177,44 +171,51 @@
   <div id="content-area">
     <div id="loading-bar"></div>
 
-    <!-- New Tab -->
+    <!-- Home / New Tab -->
     <div id="newtab">
       <div class="nt-logo">
-        <svg width="42" height="42" viewBox="0 0 24 24" fill="none" style="color:#7a9e7e">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" style="color:#7a9e7e">
           <path d="M12 2L21.66 7.5V16.5L12 22L2.34 16.5V7.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
           <circle cx="12" cy="12" r="2.5" fill="currentColor"/>
         </svg>
       </div>
       <div class="nt-title">MATRIARCHS <span>BROWSER</span></div>
-      <div class="nt-sub">SOVEREIGN BROWSING — POWERED BY MOS PROXY</div>
+      <div class="nt-sub">SOVEREIGN BROWSING — POWERED BY MOS PROXY v3</div>
       <div class="nt-search-wrap">
         <input id="nt-search" type="text" placeholder="Search Brave or enter a URL…" spellcheck="false" autocomplete="off"/>
         <button id="nt-go" onclick="ntNavigate()">GO</button>
       </div>
-      <div class="nt-quick-links">
+      <div class="nt-links">
         <div class="nt-link" onclick="loadUrl('https://search.brave.com')">🦁 Brave</div>
         <div class="nt-link" onclick="loadUrl('https://www.youtube.com')">▶ YouTube</div>
         <div class="nt-link" onclick="loadUrl('https://www.wikipedia.org')">📖 Wikipedia</div>
         <div class="nt-link" onclick="loadUrl('https://github.com')">🐙 GitHub</div>
         <div class="nt-link" onclick="loadUrl('https://www.reddit.com')">📰 Reddit</div>
         <div class="nt-link" onclick="loadUrl('https://news.ycombinator.com')">⚡ HN</div>
+        <div class="nt-link" onclick="loadUrl('https://www.twitch.tv')">🎮 Twitch</div>
+        <div class="nt-link" onclick="loadUrl('https://discord.com/app')">💬 Discord</div>
+        <div class="nt-link" onclick="loadUrl('https://www.google.com')">🔍 Google</div>
+        <div class="nt-link" onclick="loadUrl('https://www.bing.com')">🔎 Bing</div>
       </div>
     </div>
 
     <!-- Error page -->
-    <div id="error-page">
-      <div class="err-icon">⚠</div>
+    <div id="err-page">
+      <div class="err-ico">⚠</div>
       <div class="err-title" id="err-title">CONNECTION ERROR</div>
-      <div class="err-msg"   id="err-msg">Unable to reach the requested page.</div>
-      <button class="err-btn" onclick="navReload()">Try Again</button>
-      <button class="err-btn" onclick="goHome()">Go Home</button>
+      <div class="err-msg"   id="err-msg">Unable to load page.</div>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button class="err-btn" onclick="navReload()">Try Again</button>
+        <button class="err-btn" onclick="goHome()">Home</button>
+      </div>
     </div>
 
+    <!-- The actual page frame -->
     <iframe
       id="page-frame"
       src="about:blank"
-      allow="autoplay; fullscreen; encrypted-media; clipboard-write; clipboard-read; payment"
-      style="display:none;width:100%;height:100%;border:none;display:block"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-downloads allow-modals allow-top-navigation"
+      allow="autoplay; fullscreen; encrypted-media; clipboard-write; clipboard-read; payment; geolocation; camera; microphone"
     ></iframe>
   </div>
 
@@ -223,18 +224,20 @@
     <span id="status-text">Ready</span>
     <span id="status-extra"></span>
   </div>
-
 </div>
 
 <script>
 "use strict";
 
-const navHistory = [];
-let histIdx      = -1;
-let _loadTimer   = null;
-let _blankTimer  = null;   // detects stuck/blank pages (e.g. YouTube)
-let _currentRealUrl = "";
+// ── State ─────────────────────────────────────────────────────────────────────
+const history_  = [];  // navigation history (real URLs)
+let   histIdx   = -1;
+let   loading   = false;
+let   _realUrl  = "";
+let   _loadT    = null;
+let   _stuckT   = null;
 
+// ── DOM refs ──────────────────────────────────────────────────────────────────
 const urlBar     = document.getElementById("url-bar");
 const frame      = document.getElementById("page-frame");
 const newtab     = document.getElementById("newtab");
@@ -246,38 +249,25 @@ const secureIcon = document.getElementById("secure-icon");
 const btnBack    = document.getElementById("btn-back");
 const btnFwd     = document.getElementById("btn-fwd");
 const btnReload  = document.getElementById("btn-reload");
-const errPage    = document.getElementById("error-page");
+const errPage    = document.getElementById("err-page");
 const errTitle   = document.getElementById("err-title");
 const errMsg     = document.getElementById("err-msg");
-
-// Sites known to heavily block proxies — show a helpful warning
-const BLOCKED_SITES = [
-  "youtube.com", "www.youtube.com",
-  "accounts.google.com", "mail.google.com",
-  "netflix.com", "www.netflix.com",
-  "twitter.com", "x.com",
-];
-
-function isKnownBlocked(urlStr) {
-  try {
-    const h = new URL(urlStr).hostname.replace(/^www\./, "");
-    return BLOCKED_SITES.some(s => s.replace(/^www\./, "") === h);
-  } catch { return false; }
-}
 
 // ── URL helpers ───────────────────────────────────────────────────────────────
 function normalise(input) {
   input = (input || "").trim();
   if (!input) return null;
+  // Already a proxy path
   if (input.startsWith("/fetch?url=")) return input;
-  const looksLikeUrl =
+  // Looks like a URL?
+  const looksUrl =
     /^https?:\/\//i.test(input) ||
     (/\.[a-z]{2,}(\/|$)/i.test(input) && !/\s/.test(input));
-  if (looksLikeUrl) {
+  if (looksUrl) {
     if (!/^https?:\/\//i.test(input)) input = "https://" + input;
     return input;
   }
-  // ── DEFAULT SEARCH ENGINE: Brave ──────────────────────────────────────────
+  // Default: Brave search
   return "https://search.brave.com/search?q=" + encodeURIComponent(input);
 }
 
@@ -285,25 +275,100 @@ function proxyUrl(target) {
   return "/fetch?url=" + encodeURIComponent(target);
 }
 
-function updateSecureIcon(url) {
+function updateSecure(url) {
   if (!url) { secureIcon.textContent = ""; return; }
-  const isHttps = url.startsWith("https://");
-  secureIcon.textContent = isHttps ? "🔒" : "⚠";
-  secureIcon.title       = isHttps ? "Secure" : "Not secure";
-  secureIcon.style.color = isHttps ? "#4ade80" : "#febc2e";
+  if (url.startsWith("https://")) {
+    secureIcon.textContent = "🔒";
+    secureIcon.title       = "Secure connection";
+    secureIcon.style.color = "#4ade80";
+  } else {
+    secureIcon.textContent = "⚠";
+    secureIcon.title       = "Not secure";
+    secureIcon.style.color = "#febc2e";
+  }
 }
 
-// ── Navigation ────────────────────────────────────────────────────────────────
+function updateNavBtns() {
+  btnBack.disabled = histIdx <= 0;
+  btnFwd.disabled  = histIdx >= history_.length - 1;
+}
+
+// ── Loading bar ───────────────────────────────────────────────────────────────
+function startLoading() {
+  loading = true;
+  clearTimeout(_loadT);
+  loadBar.style.transition = "none";
+  loadBar.style.width      = "0%";
+  requestAnimationFrame(() => {
+    loadBar.style.transition = "width 1.8s ease-out";
+    loadBar.style.width      = "80%";
+  });
+  btnReload.style.opacity  = "0.5";
+  statusTxt.textContent    = "Loading…";
+}
+
+function stopLoading() {
+  loading = false;
+  clearTimeout(_stuckT);
+  loadBar.style.transition = "width 0.2s ease";
+  loadBar.style.width      = "100%";
+  _loadT = setTimeout(() => {
+    loadBar.style.transition = "none";
+    loadBar.style.width      = "0%";
+  }, 300);
+  btnReload.style.opacity = "1";
+}
+
+// ── Error page ────────────────────────────────────────────────────────────────
+function showError(title, msg) {
+  errTitle.textContent = title;
+  errMsg.textContent   = msg;
+  errPage.classList.add("show");
+  frame.style.display  = "none";
+  stopLoading();
+}
+
+function hideError() {
+  errPage.classList.remove("show");
+}
+
+// ── Core navigation ───────────────────────────────────────────────────────────
 function loadUrl(rawUrl) {
   const norm = normalise(rawUrl);
   if (!norm) return;
-  urlBar.value = norm;
-  _currentRealUrl = norm;
-  if (histIdx < navHistory.length - 1) navHistory.splice(histIdx + 1);
-  navHistory.push(norm);
-  histIdx = navHistory.length - 1;
+
+  hideError();
+  _realUrl      = norm;
+  urlBar.value  = norm;
+  updateSecure(norm);
+
+  // Update history
+  if (histIdx < history_.length - 1) history_.splice(histIdx + 1);
+  history_.push(norm);
+  histIdx = history_.length - 1;
   updateNavBtns();
+
   showFrame(norm);
+}
+
+function showFrame(targetUrl) {
+  newtab.classList.add("hidden");
+  frame.style.display = "block";
+  startLoading();
+  statusExt.textContent = targetUrl;
+
+  // Set iframe src to the proxied version
+  const proxied = proxyUrl(targetUrl);
+  frame.src = proxied;
+
+  // Safety: if iframe hasn't triggered load in 30s, stop spinner
+  clearTimeout(_stuckT);
+  _stuckT = setTimeout(() => {
+    if (loading) {
+      stopLoading();
+      statusTxt.textContent = "Done";
+    }
+  }, 30000);
 }
 
 function navigate() {
@@ -321,181 +386,121 @@ function ntNavigate() {
 function navBack() {
   if (histIdx <= 0) return;
   histIdx--;
-  const u = navHistory[histIdx];
+  const u = history_[histIdx];
+  _realUrl = u;
   urlBar.value = u;
-  _currentRealUrl = u;
-  updateSecureIcon(u);
-  showFrame(u);
+  updateSecure(u);
   updateNavBtns();
+  hideError();
+  showFrame(u);
 }
 
 function navFwd() {
-  if (histIdx >= navHistory.length - 1) return;
+  if (histIdx >= history_.length - 1) return;
   histIdx++;
-  const u = navHistory[histIdx];
+  const u = history_[histIdx];
+  _realUrl = u;
   urlBar.value = u;
-  _currentRealUrl = u;
-  updateSecureIcon(u);
-  showFrame(u);
+  updateSecure(u);
   updateNavBtns();
+  hideError();
+  showFrame(u);
 }
 
 function navReload() {
   hideError();
-  clearTimeout(_blankTimer);
-  const u = navHistory[histIdx];
+  const u = history_[histIdx] || _realUrl;
   if (u) showFrame(u);
 }
 
 function goHome() {
   hideError();
-  clearTimeout(_blankTimer);
-  urlBar.value          = "";
-  _currentRealUrl       = "";
-  frame.src             = "about:blank";
+  clearTimeout(_stuckT);
+  stopLoading();
   frame.style.display   = "none";
-  newtab.classList.remove("hidden");
-  statusTxt.textContent = "Ready";
-  statusExt.textContent = "";
+  frame.src             = "about:blank";
+  _realUrl              = "";
+  urlBar.value          = "";
   secureIcon.textContent = "";
-  setLoading(false);
+  newtab.classList.remove("hidden");
+  statusTxt.textContent  = "Ready";
+  statusExt.textContent  = "";
 }
 
-function clearUrl() { urlBar.value = ""; urlBar.focus(); }
-
-function updateNavBtns() {
-  btnBack.disabled = histIdx <= 0;
-  btnFwd.disabled  = histIdx >= navHistory.length - 1;
+function clearUrl() {
+  urlBar.value = "";
+  urlBar.focus();
 }
 
-// ── Frame ─────────────────────────────────────────────────────────────────────
-function showFrame(targetUrl) {
-  hideError();
-  clearTimeout(_blankTimer);
-  newtab.classList.add("hidden");
-  frame.style.display = "block";
-  updateSecureIcon(targetUrl);
-  statusTxt.textContent = "Loading…";
-  statusExt.textContent = targetUrl;
-  setLoading(true);
-  frame.src = proxyUrl(targetUrl);
-
-  // If the page appears blank after 12 s and it's a known anti-proxy site, warn the user
-  _blankTimer = setTimeout(() => {
-    if (isKnownBlocked(targetUrl)) {
-      showError(
-        "SITE BLOCKED PROXY",
-        `${new URL(targetUrl).hostname} actively blocks proxy access.\n\nTry a different site, or open it directly in a new tab.`
-      );
-    }
-  }, 12000);
-}
-
+// ── iframe load/error events ──────────────────────────────────────────────────
 frame.addEventListener("load", () => {
-  clearTimeout(_blankTimer);
-  setLoading(false);
+  stopLoading();
   statusTxt.textContent = "Done";
-  statusExt.textContent = _currentRealUrl || urlBar.value || "";
+  statusExt.textContent = _realUrl || urlBar.value || "";
 
+  // Try to detect a JSON error response from the proxy
   try {
     const body = frame.contentDocument?.body?.innerText?.trim() || "";
-    if (body.startsWith('{"error"')) {
+    if (body.startsWith("{") && body.includes('"error"')) {
       const parsed = JSON.parse(body);
-      showError("PROXY ERROR", parsed.error || "An unknown proxy error occurred.");
+      if (parsed.error) {
+        showError("PROXY ERROR", parsed.error + (parsed.message ? "\n\n" + parsed.message : ""));
+        return;
+      }
     }
-  } catch { /* cross-origin — normal */ }
+  } catch { /* cross-origin — expected */ }
 });
 
 frame.addEventListener("error", () => {
-  clearTimeout(_blankTimer);
-  setLoading(false);
-  showError("CONNECTION ERROR", "Unable to reach the requested page. Check the URL or try again.");
+  stopLoading();
+  showError("CONNECTION ERROR", "The frame failed to load.\nCheck the URL and try again.");
 });
 
-// ── Loading bar ───────────────────────────────────────────────────────────────
-function setLoading(on) {
-  if (on) {
-    loadBar.style.transition = "none";
-    loadBar.style.width      = "0%";
-    clearTimeout(_loadTimer);
-    requestAnimationFrame(() => {
-      loadBar.style.transition = "width 1.4s ease";
-      loadBar.style.width      = "75%";
-    });
-    btnReload.style.opacity = "0.5";
-  } else {
-    loadBar.style.transition = "width 0.2s ease";
-    loadBar.style.width      = "100%";
-    _loadTimer = setTimeout(() => {
-      loadBar.style.transition = "none";
-      loadBar.style.width      = "0%";
-    }, 300);
-    btnReload.style.opacity = "1";
-  }
-}
+// ── Messages from proxied pages (via injected runtime) ────────────────────────
+window.addEventListener("message", (e) => {
+  if (!e.data || typeof e.data !== "object") return;
 
-// ── Error page ────────────────────────────────────────────────────────────────
-function showError(title, msg) {
-  errTitle.textContent = title;
-  errMsg.textContent   = msg;
-  errPage.classList.add("visible");
-  frame.style.display  = "none";
-  setLoading(false);
-}
-
-function hideError() { errPage.classList.remove("visible"); }
-
-// ── Key bindings ──────────────────────────────────────────────────────────────
-urlBar.addEventListener("keydown", e => {
-  if (e.key === "Enter")  { e.preventDefault(); navigate(); }
-  if (e.key === "Escape") { urlBar.blur(); }
-});
-
-ntSearch.addEventListener("keydown", e => {
-  if (e.key === "Enter") ntNavigate();
-});
-
-document.addEventListener("keydown", e => {
-  if ((e.ctrlKey || e.metaKey) && e.key === "l") { e.preventDefault(); urlBar.select(); }
-  if ((e.ctrlKey || e.metaKey) && e.key === "r") { e.preventDefault(); navReload(); }
-  if (e.altKey && e.key === "ArrowLeft")  navBack();
-  if (e.altKey && e.key === "ArrowRight") navFwd();
-});
-
-// ── postMessage from injected proxy script ────────────────────────────────────
-window.addEventListener("message", e => {
-  if (!e.data) return;
-
-  // ── Proxied page link clicked → parent drives the navigation ─────────────
-  // (the injected script sends this; the parent is the single source of truth
-  //  for frame.src so all history / URL-bar / loading state stays in sync)
+  // Link clicked inside proxied page → navigate
   if (e.data.type === "mos-navigate-proxy" && e.data.url) {
     loadUrl(e.data.url);
     return;
   }
 
-  // ── SPA / history-API URL update (no full reload needed) ─────────────────
+  // SPA URL change (history.pushState etc.)
   if (e.data.type === "mos-url-update" && e.data.url) {
-    const realUrl = e.data.url;
-    if (realUrl && realUrl !== _currentRealUrl && !realUrl.startsWith("about:")) {
-      _currentRealUrl = realUrl;
-      urlBar.value = realUrl;
-      updateSecureIcon(realUrl);
-      statusExt.textContent = realUrl;
-      // Keep history in sync for SPA navigations
-      if (histIdx < navHistory.length - 1) navHistory.splice(histIdx + 1);
-      navHistory.push(realUrl);
-      histIdx = navHistory.length - 1;
+    const real = e.data.url;
+    if (real && real !== _realUrl && !real.startsWith("about:") && !real.startsWith("/fetch")) {
+      _realUrl      = real;
+      urlBar.value  = real;
+      updateSecure(real);
+      statusExt.textContent = real;
+      if (histIdx < history_.length - 1) history_.splice(histIdx + 1);
+      history_.push(real);
+      histIdx = history_.length - 1;
       updateNavBtns();
     }
     return;
   }
 
-  // ── Direct navigation request from parent OS window ───────────────────────
+  // Forwarded navigation request from parent OS
   if (e.data.type === "mos-navigate" && e.data.url) {
     loadUrl(e.data.url);
-    return;
   }
+});
+
+// ── Key bindings ──────────────────────────────────────────────────────────────
+urlBar.addEventListener("keydown", (e) => {
+  if (e.key === "Enter")  { e.preventDefault(); navigate(); }
+  if (e.key === "Escape") { urlBar.blur(); }
+});
+ntSearch.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") ntNavigate();
+});
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "l") { e.preventDefault(); urlBar.select(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === "r") { e.preventDefault(); navReload(); }
+  if (e.altKey && e.key === "ArrowLeft")          navBack();
+  if (e.altKey && e.key === "ArrowRight")         navFwd();
 });
 </script>
 </body>
