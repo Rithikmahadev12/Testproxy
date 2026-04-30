@@ -25,170 +25,84 @@
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { width: 100%; height: 100%; background: var(--bg); font-family: var(--sans); color: var(--text); overflow: hidden; }
-
     #layout       { display: flex; flex-direction: column; width: 100%; height: 100%; }
     #toolbar      { display: flex; align-items: center; gap: 5px; padding: 6px 10px; background: var(--surface2); border-bottom: 1px solid var(--border); height: 44px; flex-shrink: 0; }
     #content-area { flex: 1; position: relative; background: #000; overflow: hidden; }
     #statusbar    { height: 22px; background: var(--surface2); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px; gap: 10px; flex-shrink: 0; }
+    .tb-btn { width:30px;height:30px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-dim);cursor:pointer;transition:background .12s,color .12s,border-color .12s; }
+    .tb-btn:hover:not(:disabled){background:var(--surface3);color:var(--text);border-color:var(--border-hi);}
+    .tb-btn:active:not(:disabled){transform:scale(.93);}
+    .tb-btn:disabled{opacity:.3;cursor:not-allowed;}
+    #url-wrap{flex:1;display:flex;align-items:center;background:var(--surface3);border:1px solid var(--border);border-radius:7px;padding:0 10px;height:30px;transition:border-color .15s;}
+    #url-wrap:focus-within{border-color:var(--border-hi);}
+    #secure-icon{font-size:11px;margin-right:5px;flex-shrink:0;}
+    #url-bar{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:var(--mono);font-size:11px;letter-spacing:.04em;user-select:text;min-width:0;}
+    #url-bar::placeholder{color:var(--text-dim);}
+    #clear-btn{background:transparent;border:none;color:var(--text-dim);cursor:pointer;font-size:15px;line-height:1;padding:0 2px;}
+    #clear-btn:hover{color:var(--text);}
+    #go-btn{padding:0 14px;height:30px;flex-shrink:0;background:var(--gold);color:#000;border:none;border-radius:6px;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.1em;cursor:pointer;transition:background .12s;}
+    #go-btn:hover{background:var(--gold2);}
+    #loading-bar{position:absolute;top:0;left:0;height:2px;width:0%;background:linear-gradient(90deg,var(--gold),var(--gold2));transition:width .25s ease;z-index:10;pointer-events:none;box-shadow:0 0 8px rgba(122,158,126,.6);}
 
-    .tb-btn {
-      width: 30px; height: 30px; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      border: 1px solid var(--border); border-radius: 6px;
-      background: transparent; color: var(--text-dim);
-      cursor: pointer; transition: background .12s, color .12s, border-color .12s;
-    }
-    .tb-btn:hover:not(:disabled) { background: var(--surface3); color: var(--text); border-color: var(--border-hi); }
-    .tb-btn:active:not(:disabled){ transform: scale(.93); }
-    .tb-btn:disabled              { opacity: .3; cursor: not-allowed; }
+    /* NEW TAB */
+    #newtab{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:var(--bg);z-index:5;overflow-y:auto;padding:20px 0;}
+    #newtab.hidden{display:none;}
+    .nt-logo{color:var(--gold);}
+    .nt-title{font-family:var(--mono);font-size:20px;font-weight:700;letter-spacing:.22em;color:var(--text);}
+    .nt-title span{color:var(--gold);}
+    .nt-sub{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.12em;margin-top:-10px;}
+    .nt-search-wrap{display:flex;gap:8px;width:500px;max-width:92vw;}
+    #nt-search{flex:1;background:var(--surface2);border:1px solid var(--border-hi);border-radius:8px;padding:12px 16px;color:var(--text);font-family:var(--sans);font-size:14px;outline:none;transition:border-color .15s;user-select:text;}
+    #nt-search:focus{border-color:var(--gold);}
+    #nt-search::placeholder{color:var(--text-dim);}
+    #nt-go{background:var(--gold);color:#000;border:none;border-radius:8px;padding:0 22px;font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.1em;transition:background .12s;}
+    #nt-go:hover{background:var(--gold2);}
+    .nt-engine-row{display:flex;gap:6px;align-items:center;font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.08em;margin-top:-6px;}
+    .nt-engine-btn{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:3px 9px;font-family:var(--mono);font-size:9px;color:var(--text-dim);cursor:pointer;transition:all .12s;letter-spacing:.06em;}
+    .nt-engine-btn.active{background:var(--gold);color:#000;border-color:var(--gold);}
+    .nt-engine-btn:hover:not(.active){color:var(--text);border-color:var(--border-hi);}
+    .nt-links{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:540px;}
+    .nt-link{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-family:var(--mono);font-size:10px;color:var(--text-mid);cursor:pointer;letter-spacing:.08em;transition:background .12s,color .12s,border-color .12s;}
+    .nt-link:hover{background:var(--surface3);color:var(--text);border-color:var(--border-hi);}
+    .nt-note{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.06em;text-align:center;max-width:440px;line-height:1.8;}
 
-    #url-wrap {
-      flex: 1; display: flex; align-items: center; gap: 0;
-      background: var(--surface3); border: 1px solid var(--border);
-      border-radius: 7px; padding: 0 10px; height: 30px;
-      transition: border-color .15s;
-    }
-    #url-wrap:focus-within { border-color: var(--border-hi); }
-    #secure-icon { font-size: 11px; margin-right: 5px; flex-shrink: 0; }
-    #url-bar {
-      flex: 1; background: transparent; border: none; outline: none;
-      color: var(--text); font-family: var(--mono); font-size: 11px;
-      letter-spacing: .04em; user-select: text; min-width: 0;
-    }
-    #url-bar::placeholder { color: var(--text-dim); }
-    #clear-btn {
-      background: transparent; border: none; color: var(--text-dim);
-      cursor: pointer; font-size: 15px; line-height: 1; padding: 0 2px; display: none;
-    }
-    #clear-btn:hover { color: var(--text); }
-    #url-bar:not(:placeholder-shown) ~ #clear-btn { display: block; }
-    #go-btn {
-      padding: 0 14px; height: 30px; flex-shrink: 0;
-      background: var(--gold); color: #000; border: none; border-radius: 6px;
-      font-family: var(--mono); font-size: 10px; font-weight: 700;
-      letter-spacing: .1em; cursor: pointer; transition: background .12s;
-    }
-    #go-btn:hover { background: var(--gold2); }
+    /* ERROR */
+    #err-page{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg);z-index:6;text-align:center;padding:40px;}
+    #err-page.show{display:flex;}
+    .err-ico{font-size:42px;}
+    .err-title{font-family:var(--mono);font-size:16px;color:var(--red);letter-spacing:.1em;}
+    .err-msg{font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:.04em;max-width:480px;line-height:2;white-space:pre-line;}
+    .err-actions{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;justify-content:center;}
+    .err-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 20px;font-family:var(--mono);font-size:10px;color:var(--text-mid);cursor:pointer;letter-spacing:.08em;transition:all .15s;}
+    .err-btn:hover{background:var(--surface3);color:var(--text);border-color:var(--border-hi);}
+    .err-btn.primary{background:var(--gold);color:#000;border-color:var(--gold);}
+    .err-btn.primary:hover{background:var(--gold2);}
 
-    #loading-bar {
-      position: absolute; top: 0; left: 0; height: 2px; width: 0%;
-      background: linear-gradient(90deg, var(--gold), var(--gold2));
-      transition: width .25s ease; z-index: 10; pointer-events: none;
-      box-shadow: 0 0 8px rgba(122,158,126,.6);
-    }
+    /* FRAME */
+    #page-frame{position:absolute;inset:0;width:100%;height:100%;border:none;display:none;background:#fff;}
 
-    /* ── New tab ─────────────────────────────────────────────────────── */
-    #newtab {
-      position: absolute; inset: 0; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 22px;
-      background: var(--bg); z-index: 5;
-    }
-    #newtab.hidden { display: none; }
-    .nt-logo  { color: var(--gold); }
-    .nt-title { font-family: var(--mono); font-size: 20px; font-weight: 700; letter-spacing: .22em; color: var(--text); }
-    .nt-title span { color: var(--gold); }
-    .nt-sub   { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: .12em; margin-top: -12px; }
-    .nt-search-wrap { display: flex; gap: 8px; width: 500px; max-width: 92vw; }
-    #nt-search {
-      flex: 1; background: var(--surface2); border: 1px solid var(--border-hi);
-      border-radius: 8px; padding: 12px 16px; color: var(--text);
-      font-family: var(--sans); font-size: 14px; outline: none;
-      transition: border-color .15s; user-select: text;
-    }
-    #nt-search:focus { border-color: var(--gold); }
-    #nt-search::placeholder { color: var(--text-dim); }
-    #nt-go {
-      background: var(--gold); color: #000; border: none; border-radius: 8px;
-      padding: 0 22px; font-family: var(--mono); font-size: 11px; font-weight: 700;
-      cursor: pointer; letter-spacing: .1em; transition: background .12s;
-    }
-    #nt-go:hover { background: var(--gold2); }
-    .nt-links { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 520px; }
-    .nt-link {
-      background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
-      padding: 10px 16px; font-family: var(--mono); font-size: 10px; color: var(--text-mid);
-      cursor: pointer; letter-spacing: .08em; transition: background .12s, color .12s, border-color .12s;
-    }
-    .nt-link:hover { background: var(--surface3); color: var(--text); border-color: var(--border-hi); }
-
-    /* ── Page frame ──────────────────────────────────────────────────── */
-    #page-frame {
-      position: absolute; inset: 0; width: 100%; height: 100%;
-      border: none; display: none; background: #fff;
-    }
-
-    /* ── YouTube / special embed ─────────────────────────────────────── */
-    #yt-embed {
-      position: absolute; inset: 0; width: 100%; height: 100%;
-      border: none; display: none; background: #000;
-    }
-
-    /* ── Error page ──────────────────────────────────────────────────── */
-    #err-page {
-      position: absolute; inset: 0; display: none;
-      flex-direction: column; align-items: center; justify-content: center;
-      gap: 12px; background: var(--bg); z-index: 6; text-align: center; padding: 40px;
-    }
-    #err-page.show { display: flex; }
-    .err-ico   { font-size: 42px; }
-    .err-title { font-family: var(--mono); font-size: 16px; color: var(--red); letter-spacing: .1em; }
-    .err-msg   { font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: .04em; text-align: center; max-width: 480px; line-height: 2; white-space: pre-line; }
-    .err-actions { display: flex; gap: 10px; margin-top: 4px; flex-wrap: wrap; justify-content: center; }
-    .err-btn   { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 20px; font-family: var(--mono); font-size: 10px; color: var(--text-mid); cursor: pointer; letter-spacing: .08em; transition: all .15s; }
-    .err-btn:hover { background: var(--surface3); color: var(--text); border-color: var(--border-hi); }
-    .err-btn.primary { background: var(--gold); color: #000; border-color: var(--gold); }
-    .err-btn.primary:hover { background: var(--gold2); }
-
-    /* ── SW status badge ─────────────────────────────────────────────── */
-    #sw-badge {
-      position: absolute; top: 6px; right: 6px;
-      font-family: var(--mono); font-size: 9px; letter-spacing: .08em;
-      padding: 3px 8px; border-radius: 4px; z-index: 20;
-      background: rgba(7,16,10,0.85); border: 1px solid var(--border);
-      color: var(--text-dim); pointer-events: none;
-    }
-    #sw-badge.active { border-color: rgba(74,222,128,0.4); color: #4ade80; }
-    #sw-badge.inactive { border-color: rgba(255,107,107,0.4); color: #ff6b6b; }
-
-    #status-text  { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: .04em; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #status-extra { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: .04em; flex-shrink: 0; }
-
-    /* ── Retry overlay (shows while trying fallback) ─────────────────── */
-    #retry-overlay {
-      position: absolute; inset: 0; display: none;
-      flex-direction: column; align-items: center; justify-content: center;
-      gap: 14px; background: var(--bg); z-index: 7;
-    }
-    #retry-overlay.show { display: flex; }
-    .retry-spinner {
-      width: 36px; height: 36px; border-radius: 50%;
-      border: 2px solid var(--border); border-top-color: var(--gold);
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .retry-msg { font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: .08em; }
+    #status-text{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.04em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    #status-extra{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.04em;flex-shrink:0;}
   </style>
 </head>
 <body>
 <div id="layout">
-
   <div id="toolbar">
-    <button class="tb-btn" id="btn-back"   title="Back"    onclick="navBack()"   disabled>
+    <button class="tb-btn" id="btn-back" title="Back" onclick="navBack()" disabled>
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
-    <button class="tb-btn" id="btn-fwd"    title="Forward" onclick="navFwd()"    disabled>
+    <button class="tb-btn" id="btn-fwd" title="Forward" onclick="navFwd()" disabled>
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
-    <button class="tb-btn" id="btn-reload" title="Reload"  onclick="navReload()">
+    <button class="tb-btn" id="btn-reload" title="Reload" onclick="navReload()">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
         <path d="M13 8A5 5 0 113 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-        <path d="M13 4v4h-4"        stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M13 4v4h-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </button>
     <button class="tb-btn" title="Home" onclick="goHome()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 12L12 3l9 9M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
-
     <div id="url-wrap">
       <span id="secure-icon"></span>
       <input id="url-bar" type="text" placeholder="Search or enter address…" spellcheck="false" autocomplete="off"/>
@@ -199,7 +113,6 @@
 
   <div id="content-area">
     <div id="loading-bar"></div>
-    <div id="sw-badge">● SW</div>
 
     <div id="newtab">
       <div class="nt-logo">
@@ -209,24 +122,34 @@
         </svg>
       </div>
       <div class="nt-title">MATRIARCHS <span>BROWSER</span></div>
-      <div class="nt-sub">SOVEREIGN BROWSING — POWERED BY MOS PROXY v4</div>
+      <div class="nt-sub">MOS PROXY v5 — SOVEREIGN BROWSING</div>
       <div class="nt-search-wrap">
         <input id="nt-search" type="text" placeholder="Search or enter a URL…" spellcheck="false" autocomplete="off"/>
         <button id="nt-go" onclick="ntNavigate()">GO</button>
       </div>
+      <div class="nt-engine-row">
+        ENGINE:
+        <button class="nt-engine-btn active" id="eng-ddg"    onclick="setEngine('ddg')">DuckDuckGo</button>
+        <button class="nt-engine-btn"        id="eng-brave"  onclick="setEngine('brave')">Brave</button>
+        <button class="nt-engine-btn"        id="eng-google" onclick="setEngine('google')">Google</button>
+      </div>
       <div class="nt-links">
-        <div class="nt-link" onclick="loadUrl('https://www.google.com')">🔍 Google</div>
-        <div class="nt-link" onclick="loadUrl('https://www.youtube.com')">▶ YouTube</div>
-        <div class="nt-link" onclick="loadUrl('https://www.tiktok.com')">🎵 TikTok</div>
+        <div class="nt-link" onclick="loadUrl('https://inv.nadeko.net')">▶ YouTube (Invidious)</div>
+        <div class="nt-link" onclick="loadUrl('https://duckduckgo.com')">🦆 DuckDuckGo</div>
+        <div class="nt-link" onclick="loadUrl('https://search.brave.com')">🔍 Brave Search</div>
         <div class="nt-link" onclick="loadUrl('https://www.reddit.com')">📰 Reddit</div>
-        <div class="nt-link" onclick="loadUrl('https://www.twitch.tv')">🎮 Twitch</div>
+        <div class="nt-link" onclick="loadUrl('https://news.ycombinator.com')">⚡ Hacker News</div>
         <div class="nt-link" onclick="loadUrl('https://www.wikipedia.org')">📖 Wikipedia</div>
         <div class="nt-link" onclick="loadUrl('https://github.com')">🐙 GitHub</div>
-        <div class="nt-link" onclick="loadUrl('https://news.ycombinator.com')">⚡ HN</div>
-        <div class="nt-link" onclick="loadUrl('https://www.instagram.com')">📸 Instagram</div>
-        <div class="nt-link" onclick="loadUrl('https://x.com')">𝕏 Twitter/X</div>
+        <div class="nt-link" onclick="loadUrl('https://www.twitch.tv')">🎮 Twitch</div>
         <div class="nt-link" onclick="loadUrl('https://discord.com/app')">💬 Discord</div>
-        <div class="nt-link" onclick="loadUrl('https://search.brave.com')">🦁 Brave</div>
+        <div class="nt-link" onclick="loadUrl('https://x.com')">𝕏 Twitter/X</div>
+        <div class="nt-link" onclick="loadUrl('https://www.tiktok.com')">🎵 TikTok</div>
+        <div class="nt-link" onclick="loadUrl('https://www.instagram.com')">📸 Instagram</div>
+      </div>
+      <div class="nt-note">
+        ▶ YouTube links are automatically routed to Invidious (open-source YouTube).<br>
+        Type any youtube.com or youtu.be URL and it will work.
       </div>
     </div>
 
@@ -235,25 +158,16 @@
       <div class="err-title" id="err-title">CONNECTION ERROR</div>
       <div class="err-msg"   id="err-msg">Unable to load page.</div>
       <div class="err-actions">
-        <button class="err-btn" onclick="navReload()">Try Again</button>
-        <button class="err-btn" onclick="tryFallback()">Try Fallback Proxy</button>
+        <button class="err-btn primary" onclick="navReload()">Try Again</button>
         <button class="err-btn" onclick="openDirect()">Open Directly ↗</button>
         <button class="err-btn" onclick="goHome()">Home</button>
       </div>
-    </div>
-
-    <div id="retry-overlay">
-      <div class="retry-spinner"></div>
-      <div class="retry-msg" id="retry-msg">Trying fallback proxy…</div>
     </div>
 
     <iframe id="page-frame" src="about:blank"
       sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-downloads allow-modals allow-top-navigation allow-top-navigation-by-user-activation"
       allow="autoplay; fullscreen; encrypted-media; clipboard-write; clipboard-read; payment; geolocation; camera; microphone; picture-in-picture"
     ></iframe>
-
-    <!-- Used for YouTube/special embeds -->
-    <iframe id="yt-embed" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
   </div>
 
   <div id="statusbar">
@@ -266,45 +180,60 @@
 "use strict";
 
 // ══════════════════════════════════════════════════════
-//  MOS Browser v4 — client-side service worker proxy
+//  MOS Browser v5
 // ══════════════════════════════════════════════════════
 
-const PROXY     = "/fetch?url=";
-const SW_PATH   = "/sw.js";
-
-// Fallback proxy services tried in order
-const FALLBACKS = [
-  (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-  (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-];
-
-// Sites that need special handling
-const SPECIAL = {
-  youtube: /^(www\.|m\.)?youtube\.com|^youtu\.be/i,
-  tiktok:  /^(www\.|vm\.)?tiktok\.com/i,
-  twitch:  /^(www\.)?twitch\.tv/i,
-  discord: /^(www\.|ptb\.|canary\.)?discord\.com/i,
-  instagram: /^(www\.)?instagram\.com/i,
-  twitter: /^(www\.)?twitter\.com|^x\.com/i,
-  netflix: /^(www\.)?netflix\.com/i,
-  spotify: /^(open\.|www\.)?spotify\.com/i,
+const ENGINES = {
+  ddg:    (q) => "https://duckduckgo.com/?q=" + encodeURIComponent(q) + "&ia=web",
+  brave:  (q) => "https://search.brave.com/search?q=" + encodeURIComponent(q),
+  google: (q) => "https://www.google.com/search?q=" + encodeURIComponent(q),
 };
 
-// ── State ─────────────────────────────────────────────────────────────────────
-const hist = [];
-let histIdx  = -1;
-let loading  = false;
-let _realUrl = "";
-let _loadT   = null;
-let _stuckT  = null;
-let _swReady = false;
-let _fallbackIdx = 0;
+// Invidious instances — we cycle through them if one fails
+const INV = [
+  "inv.nadeko.net",
+  "invidious.privacyredirect.com",
+  "invidious.nerdvpn.de",
+  "iv.melmac.space",
+  "yewtu.be",
+];
+let invIdx = 0;
+function invHost(){ return INV[invIdx % INV.length]; }
 
-// ── DOM ───────────────────────────────────────────────────────────────────────
+function rewriteYT(u) {
+  try {
+    if (!u || (!u.includes("youtube.com") && !u.includes("youtu.be"))) return null;
+    // ensure it has a protocol so URL() works
+    if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+    const p = new URL(u);
+    const h = p.hostname.replace(/^(www\.|m\.)/, "");
+    if (h !== "youtube.com" && h !== "youtu.be") return null;
+    const inv = invHost();
+    if (h === "youtu.be") {
+      const id = p.pathname.slice(1).split("?")[0];
+      if (id) return "https://" + inv + "/watch?v=" + id;
+    }
+    const v = p.searchParams.get("v");
+    if (v) return "https://" + inv + "/watch?v=" + v;
+    const sq = p.searchParams.get("search_query");
+    if (sq) return "https://" + inv + "/search?q=" + encodeURIComponent(sq);
+    // Anything else on YT → Invidious same path
+    return "https://" + inv + p.pathname + p.search;
+  } catch { return null; }
+}
+
+// State
+const hist    = [];
+let histIdx   = -1;
+let loading   = false;
+let _realUrl  = "";
+let _loadT    = null;
+let _stuckT   = null;
+let currentEngine = "ddg";
+
+// DOM
 const urlBar     = document.getElementById("url-bar");
 const frame      = document.getElementById("page-frame");
-const ytFrame    = document.getElementById("yt-embed");
 const newtab     = document.getElementById("newtab");
 const ntSearch   = document.getElementById("nt-search");
 const loadBar    = document.getElementById("loading-bar");
@@ -317,73 +246,42 @@ const btnReload  = document.getElementById("btn-reload");
 const errPage    = document.getElementById("err-page");
 const errTitle   = document.getElementById("err-title");
 const errMsg     = document.getElementById("err-msg");
-const swBadge    = document.getElementById("sw-badge");
-const retryOverlay = document.getElementById("retry-overlay");
-const retryMsg   = document.getElementById("retry-msg");
 
-// ══════════════════════════════════════════════════════
-//  SERVICE WORKER REGISTRATION
-// ══════════════════════════════════════════════════════
-async function registerSW() {
-  if (!("serviceWorker" in navigator)) {
-    swBadge.textContent = "● NO SW";
-    swBadge.className   = "inactive";
-    return;
-  }
-  try {
-    const reg = await navigator.serviceWorker.register(SW_PATH, { scope: "/" });
-    await navigator.serviceWorker.ready;
-    _swReady = true;
-    swBadge.textContent = "● SW ACTIVE";
-    swBadge.className   = "sw-badge active";
-    console.log("[MOS] Service worker active");
-  } catch (err) {
-    swBadge.textContent = "● SW OFF";
-    swBadge.className   = "sw-badge inactive";
-    console.warn("[MOS] SW registration failed:", err.message);
-  }
+function setEngine(name) {
+  currentEngine = name;
+  document.querySelectorAll(".nt-engine-btn").forEach(b => b.classList.remove("active"));
+  const btn = document.getElementById("eng-" + name);
+  if (btn) btn.classList.add("active");
 }
 
-// ══════════════════════════════════════════════════════
-//  URL HELPERS
-// ══════════════════════════════════════════════════════
 function normalise(input) {
   input = (input || "").trim();
   if (!input) return null;
+
+  // Try YouTube rewrite first
+  const yt = rewriteYT(input);
+  if (yt) return yt;
+
   if (input.startsWith("/fetch?url=")) return input;
+
   const looksUrl =
     /^https?:\/\//i.test(input) ||
     (/\.[a-z]{2,}(\/|$)/i.test(input) && !/\s/.test(input));
+
   if (looksUrl) {
     if (!/^https?:\/\//i.test(input)) input = "https://" + input;
     return input;
   }
-  return "https://www.google.com/search?q=" + encodeURIComponent(input);
+
+  return ENGINES[currentEngine](input);
 }
 
-function getHostname(url) {
-  try { return new URL(url).hostname.replace(/^www\./, ""); }
-  catch { return ""; }
-}
-
-function detectSpecial(url) {
-  const h = getHostname(url);
-  for (const [name, re] of Object.entries(SPECIAL)) {
-    if (re.test(h)) return name;
-  }
-  return null;
-}
-
-function updateSecure(url) {
-  if (!url) { secureIcon.textContent = ""; return; }
-  if (url.startsWith("https://")) {
-    secureIcon.textContent = "🔒";
-    secureIcon.title       = "Secure";
-    secureIcon.style.color = "#4ade80";
+function updateSecure(u) {
+  if (!u) { secureIcon.textContent = ""; return; }
+  if (u.startsWith("https://")) {
+    secureIcon.textContent = "🔒"; secureIcon.style.color = "#4ade80";
   } else {
-    secureIcon.textContent = "⚠";
-    secureIcon.title       = "Not secure";
-    secureIcon.style.color = "#febc2e";
+    secureIcon.textContent = "⚠"; secureIcon.style.color = "#febc2e";
   }
 }
 
@@ -392,407 +290,130 @@ function updateNavBtns() {
   btnFwd.disabled  = histIdx >= hist.length - 1;
 }
 
-// ══════════════════════════════════════════════════════
-//  LOADING BAR
-// ══════════════════════════════════════════════════════
 function startLoading() {
-  loading = true;
-  clearTimeout(_loadT);
-  loadBar.style.transition = "none";
-  loadBar.style.width      = "0%";
-  requestAnimationFrame(() => {
-    loadBar.style.transition = "width 2.5s ease-out";
-    loadBar.style.width      = "75%";
-  });
-  btnReload.style.opacity = "0.5";
-  statusTxt.textContent   = "Loading…";
+  loading = true; clearTimeout(_loadT);
+  loadBar.style.transition = "none"; loadBar.style.width = "0%";
+  requestAnimationFrame(() => { loadBar.style.transition = "width 3s ease-out"; loadBar.style.width = "80%"; });
+  btnReload.style.opacity = "0.5"; statusTxt.textContent = "Loading…";
 }
 
 function stopLoading() {
-  loading = false;
-  clearTimeout(_stuckT);
-  loadBar.style.transition = "width 0.2s ease";
-  loadBar.style.width      = "100%";
-  _loadT = setTimeout(() => {
-    loadBar.style.transition = "none";
-    loadBar.style.width      = "0%";
-  }, 300);
+  loading = false; clearTimeout(_stuckT);
+  loadBar.style.transition = "width 0.2s ease"; loadBar.style.width = "100%";
+  _loadT = setTimeout(() => { loadBar.style.transition = "none"; loadBar.style.width = "0%"; }, 350);
   btnReload.style.opacity = "1";
 }
 
-// ══════════════════════════════════════════════════════
-//  ERROR / RETRY OVERLAY
-// ══════════════════════════════════════════════════════
 function showError(title, msg) {
-  errTitle.textContent = title;
-  errMsg.textContent   = msg;
-  errPage.classList.add("show");
-  hideFrame();
-  stopLoading();
+  errTitle.textContent = title; errMsg.textContent = msg;
+  errPage.classList.add("show"); frame.style.display = "none"; stopLoading();
 }
 
-function hideError() {
-  errPage.classList.remove("show");
-}
+function hideError() { errPage.classList.remove("show"); }
+function openDirect() { if (_realUrl) window.open(_realUrl, "_blank"); }
 
-function showRetry(msg) {
-  retryMsg.textContent = msg || "Trying fallback…";
-  retryOverlay.classList.add("show");
-}
-
-function hideRetry() {
-  retryOverlay.classList.remove("show");
-}
-
-function hideFrame() {
-  frame.style.display  = "none";
-  ytFrame.style.display = "none";
-}
-
-function openDirect() {
-  if (_realUrl) window.open(_realUrl, "_blank");
-}
-
-// ══════════════════════════════════════════════════════
-//  SPECIAL SITE HANDLERS
-// ══════════════════════════════════════════════════════
-
-function handleYouTube(url) {
-  // Extract video ID if it's a video URL
-  let videoId = null;
-  try {
-    const u = new URL(url);
-    if (u.hostname.includes("youtu.be")) {
-      videoId = u.pathname.slice(1).split("?")[0];
-    } else {
-      videoId = u.searchParams.get("v");
-    }
-  } catch {}
-
-  if (videoId) {
-    // Embed specific video
-    newtab.classList.add("hidden");
-    frame.style.display  = "none";
-    ytFrame.style.display = "block";
-    ytFrame.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0`;
-    stopLoading();
-    statusTxt.textContent = "YouTube (embed mode)";
-    return true;
-  }
-
-  // For YouTube homepage/search, try proxy
-  return false;
-}
-
-function handleTikTok(url) {
-  // Try to embed TikTok video
-  let videoId = null;
-  try {
-    const u = new URL(url);
-    const match = u.pathname.match(/\/video\/(\d+)/);
-    if (match) videoId = match[1];
-  } catch {}
-
-  if (videoId) {
-    newtab.classList.add("hidden");
-    frame.style.display   = "none";
-    ytFrame.style.display = "block";
-    ytFrame.src = `https://www.tiktok.com/embed/v2/${videoId}`;
-    stopLoading();
-    statusTxt.textContent = "TikTok (embed mode)";
-    return true;
-  }
-  return false;
-}
-
-// ══════════════════════════════════════════════════════
-//  FALLBACK PROXY CHAIN
-// ══════════════════════════════════════════════════════
-async function tryFallback() {
-  hideError();
-  hideRetry();
-
-  if (!_realUrl) return;
-  if (_fallbackIdx >= FALLBACKS.length) {
-    showError("ALL PROXIES FAILED",
-      `Could not load: ${_realUrl}\n\nThis site actively blocks all proxy methods.\nTry opening it directly in a new tab.`);
-    return;
-  }
-
-  const fallbackUrl = FALLBACKS[_fallbackIdx](_realUrl);
-  _fallbackIdx++;
-
-  showRetry(`Trying proxy ${_fallbackIdx} of ${FALLBACKS.length}…`);
-  startLoading();
-
-  try {
-    // Quick head check to see if fallback responds
-    const resp = await fetch(fallbackUrl, { method: "GET", signal: AbortSignal.timeout(8000) });
-    if (resp.ok) {
-      hideRetry();
-      newtab.classList.add("hidden");
-      frame.style.display   = "block";
-      ytFrame.style.display = "none";
-      frame.src = fallbackUrl;
-      statusTxt.textContent = `Via fallback proxy ${_fallbackIdx}`;
-      stopLoading();
-      return;
-    }
-  } catch {}
-
-  // That fallback failed, try next
-  hideRetry();
-  await tryFallback();
-}
-
-// ══════════════════════════════════════════════════════
-//  CORE NAVIGATION
-// ══════════════════════════════════════════════════════
 function loadUrl(rawUrl) {
   const norm = normalise(rawUrl);
   if (!norm) return;
-
   hideError();
-  hideRetry();
-  _realUrl      = norm;
-  _fallbackIdx  = 0;
-  urlBar.value  = norm;
-  updateSecure(norm);
-
+  _realUrl = norm; urlBar.value = norm; updateSecure(norm);
   if (histIdx < hist.length - 1) hist.splice(histIdx + 1);
-  hist.push(norm);
-  histIdx = hist.length - 1;
-  updateNavBtns();
-
-  startLoading();
-  showFrame(norm);
+  hist.push(norm); histIdx = hist.length - 1; updateNavBtns();
+  startLoading(); showFrame(norm);
 }
 
 function showFrame(targetUrl) {
-  newtab.classList.add("hidden");
-  hideError();
-  hideRetry();
+  newtab.classList.add("hidden"); hideError();
   statusExt.textContent = targetUrl;
-
-  const special = detectSpecial(targetUrl);
-
-  // ── YouTube ──────────────────────────────────────────────────────────
-  if (special === "youtube") {
-    if (handleYouTube(targetUrl)) return;
-    // Fall through to proxy for homepage/search
-  }
-
-  // ── TikTok ───────────────────────────────────────────────────────────
-  if (special === "tiktok") {
-    if (handleTikTok(targetUrl)) return;
-    // Fall through to proxy for browse
-  }
-
-  // ── Regular proxy via your server ─────────────────────────────────
-  ytFrame.style.display = "none";
-  frame.style.display   = "block";
-
-  // If SW is active, the frame can load the real URL directly
-  // and the SW will intercept+proxy all sub-requests automatically
-  if (_swReady) {
-    frame.src = PROXY + encodeURIComponent(targetUrl);
-  } else {
-    // No SW — use server proxy directly
-    frame.src = PROXY + encodeURIComponent(targetUrl);
-  }
-
-  // Timeout safety
+  frame.style.display = "block";
+  frame.src = "/fetch?url=" + encodeURIComponent(targetUrl);
   clearTimeout(_stuckT);
-  _stuckT = setTimeout(() => {
-    if (loading) {
-      stopLoading();
-      statusTxt.textContent = "Done";
-    }
-  }, 30000);
+  _stuckT = setTimeout(() => { if (loading) stopLoading(); }, 30000);
 }
 
 function navigate() {
-  const v = urlBar.value.trim();
-  if (v) loadUrl(v);
+  const v = urlBar.value.trim(); if (v) loadUrl(v);
 }
 
 function ntNavigate() {
-  const v = ntSearch.value.trim();
-  if (!v) return;
-  ntSearch.value = "";
-  loadUrl(v);
+  const v = ntSearch.value.trim(); if (!v) return;
+  ntSearch.value = ""; loadUrl(v);
 }
 
 function navBack() {
-  if (histIdx <= 0) return;
-  histIdx--;
+  if (histIdx <= 0) return; histIdx--;
   const u = hist[histIdx];
   _realUrl = u; urlBar.value = u; updateSecure(u); updateNavBtns();
   hideError(); showFrame(u);
 }
 
 function navFwd() {
-  if (histIdx >= hist.length - 1) return;
-  histIdx++;
+  if (histIdx >= hist.length - 1) return; histIdx++;
   const u = hist[histIdx];
   _realUrl = u; urlBar.value = u; updateSecure(u); updateNavBtns();
   hideError(); showFrame(u);
 }
 
 function navReload() {
-  hideError(); hideRetry();
-  const u = hist[histIdx] || _realUrl;
-  if (u) { _fallbackIdx = 0; showFrame(u); }
+  hideError();
+  const u = hist[histIdx] || _realUrl; if (u) showFrame(u);
 }
 
 function goHome() {
-  hideError(); hideRetry();
-  clearTimeout(_stuckT);
-  stopLoading();
-  frame.style.display   = "none";
-  ytFrame.style.display = "none";
-  frame.src             = "about:blank";
-  ytFrame.src           = "about:blank";
-  _realUrl              = "";
-  urlBar.value          = "";
-  secureIcon.textContent = "";
+  hideError(); clearTimeout(_stuckT); stopLoading();
+  frame.style.display = "none"; frame.src = "about:blank";
+  _realUrl = ""; urlBar.value = ""; secureIcon.textContent = "";
   newtab.classList.remove("hidden");
-  statusTxt.textContent  = "Ready";
-  statusExt.textContent  = "";
+  statusTxt.textContent = "Ready"; statusExt.textContent = "";
 }
 
-function clearUrl() {
-  urlBar.value = "";
-  urlBar.focus();
-}
+function clearUrl() { urlBar.value = ""; urlBar.focus(); }
 
-// ══════════════════════════════════════════════════════
-//  FRAME EVENTS
-// ══════════════════════════════════════════════════════
 frame.addEventListener("load", () => {
-  stopLoading();
-  statusTxt.textContent = "Done";
-  statusExt.textContent = _realUrl || urlBar.value || "";
-
+  stopLoading(); statusTxt.textContent = "Done";
   try {
-    const doc  = frame.contentDocument;
-    const body = doc?.body;
+    const body = frame.contentDocument && frame.contentDocument.body;
     if (!body) return;
-
-    const innerText = (body.innerText  || "").trim();
-    const innerHTML = (body.innerHTML  || "").trim();
-
-    // Proxy returned JSON error
-    if (innerHTML.startsWith("{") && innerHTML.includes('"error"')) {
+    const text = (body.innerText || "").trim().slice(0, 300);
+    if (text.startsWith("{") && text.includes('"error"')) {
       try {
-        const parsed = JSON.parse(innerText);
-        if (parsed.error) {
-          showRetry("Proxy error — trying fallback…");
-          setTimeout(tryFallback, 400);
-          return;
-        }
+        const parsed = JSON.parse(body.innerText || "{}");
+        if (parsed.error) { showError("PROXY ERROR", parsed.error + "\n\n" + (_realUrl || "")); return; }
       } catch {}
     }
-
-    // Completely blank body
-    if (!innerHTML || innerHTML === "") {
-      if (_realUrl && _fallbackIdx === 0) {
-        showRetry("Page blank — trying fallback proxy…");
-        setTimeout(tryFallback, 600);
-      }
-      return;
-    }
-
-    // Body has content but NO images loaded (all 0x0 or broken)
-    // Check after a short delay to let images attempt loading
-    setTimeout(() => {
-      try {
-        const imgs = Array.from(doc.querySelectorAll("img"));
-        if (imgs.length > 3) {
-          const broken = imgs.filter(i => i.naturalWidth === 0 && i.complete).length;
-          const ratio  = broken / imgs.length;
-          if (ratio > 0.8 && _fallbackIdx === 0) {
-            // Most images broken — silently try to patch them
-            imgs.forEach(img => {
-              const src = img.getAttribute("src");
-              if (src && !src.startsWith("/fetch?url=") && !src.startsWith("data:")) {
-                try {
-                  img.src = "/fetch?url=" + encodeURIComponent(new URL(src, _realUrl).href);
-                } catch {}
-              }
-            });
-          }
-        }
-      } catch {}
-    }, 1500);
-
-  } catch {
-    // cross-origin means page loaded fine in proxy
-  }
+  } catch {}
 });
 
 frame.addEventListener("error", () => {
   stopLoading();
-  tryFallback();
+  showError("LOAD ERROR", "Failed to load:\n" + (_realUrl || "unknown"));
 });
 
-ytFrame.addEventListener("load", () => {
-  stopLoading();
-  statusTxt.textContent = "Done";
-});
-
-// ══════════════════════════════════════════════════════
-//  MESSAGES FROM PROXIED PAGES
-// ══════════════════════════════════════════════════════
 window.addEventListener("message", (e) => {
   if (!e.data || typeof e.data !== "object") return;
-
-  if (e.data.type === "mos-navigate-proxy" && e.data.url) {
-    loadUrl(e.data.url);
-    return;
-  }
-
+  if (e.data.type === "mos-navigate-proxy" && e.data.url) { loadUrl(e.data.url); return; }
   if (e.data.type === "mos-url-update" && e.data.url) {
     const real = e.data.url;
     if (real && real !== _realUrl && !real.startsWith("about:") && !real.startsWith("/fetch")) {
-      _realUrl      = real;
-      urlBar.value  = real;
-      updateSecure(real);
-      statusExt.textContent = real;
+      _realUrl = real; urlBar.value = real; updateSecure(real); statusExt.textContent = real;
       if (histIdx < hist.length - 1) hist.splice(histIdx + 1);
-      hist.push(real);
-      histIdx = hist.length - 1;
-      updateNavBtns();
+      hist.push(real); histIdx = hist.length - 1; updateNavBtns();
     }
-    return;
   }
-
-  if (e.data.type === "mos-navigate" && e.data.url) {
-    loadUrl(e.data.url);
-  }
+  if (e.data.type === "mos-navigate" && e.data.url) loadUrl(e.data.url);
 });
 
-// ══════════════════════════════════════════════════════
-//  KEY BINDINGS
-// ══════════════════════════════════════════════════════
 urlBar.addEventListener("keydown", (e) => {
-  if (e.key === "Enter")  { e.preventDefault(); navigate(); }
-  if (e.key === "Escape") { urlBar.blur(); }
+  if (e.key === "Enter") { e.preventDefault(); navigate(); }
+  if (e.key === "Escape") urlBar.blur();
 });
-ntSearch.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") ntNavigate();
-});
+ntSearch.addEventListener("keydown", (e) => { if (e.key === "Enter") ntNavigate(); });
 document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "l") { e.preventDefault(); urlBar.select(); }
   if ((e.ctrlKey || e.metaKey) && e.key === "r") { e.preventDefault(); navReload(); }
   if (e.altKey && e.key === "ArrowLeft")  navBack();
   if (e.altKey && e.key === "ArrowRight") navFwd();
 });
-
-// ══════════════════════════════════════════════════════
-//  INIT
-// ══════════════════════════════════════════════════════
-registerSW();
 </script>
 </body>
 </html>
