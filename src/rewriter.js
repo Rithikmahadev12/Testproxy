@@ -1,8 +1,9 @@
 "use strict";
 
 // ══════════════════════════════════════
-//  MATRIARCHS OS — rewriter.js  v4
-//  Aggressive HTML/CSS URL rewriting
+//  MATRIARCHS OS — rewriter.js  v5
+//  Smarter HTML/CSS URL rewriting
+//  Does NOT mangle inline JS strings
 // ══════════════════════════════════════
 
 function prefix(proxyBase) {
@@ -41,37 +42,37 @@ function rewriteHtml(html, targetUrl, proxyBase) {
   const pfx = prefix(proxyBase);
   const rw  = (val) => { try { return toProxy(val, targetUrl, pfx); } catch { return val; } };
 
-  // ── src= on ANY tag ───────────────────────────────────────────────────────
+  // src= on media/embed/iframe/script/img tags
   html = html.replace(
     /(\s)(src)=(["'])(.*?)\3/gi,
     (_, sp, attr, q, val) => `${sp}${attr}=${q}${rw(val)}${q}`
   );
 
-  // ── href= on <link> tags only (NOT <a>) ──────────────────────────────────
+  // href= on <link> tags only
   html = html.replace(
     /(<link\b[^>]*?\s)(href)=(["'])(.*?)\3/gi,
     (_, pre, attr, q, val) => `${pre}${attr}=${q}${rw(val)}${q}`
   );
 
-  // ── action= on <form> ─────────────────────────────────────────────────────
+  // action= on <form>
   html = html.replace(
     /(<form\b[^>]*?\s)(action)=(["'])(.*?)\3/gi,
     (_, pre, attr, q, val) => `${pre}${attr}=${q}${rw(val)}${q}`
   );
 
-  // ── data-* resource attributes ────────────────────────────────────────────
+  // data-* resource attributes
   html = html.replace(
     /(\s)(data-src|data-href|data-lazy|data-lazy-src|data-original|data-url|data-image|data-background|data-bg|data-thumb|data-full|data-link|data-path|data-poster)=(["'])(.*?)\3/gi,
     (_, sp, attr, q, val) => `${sp}${attr}=${q}${rw(val)}${q}`
   );
 
-  // ── poster= ───────────────────────────────────────────────────────────────
+  // poster=
   html = html.replace(
     /(\s)(poster)=(["'])(.*?)\3/gi,
     (_, sp, attr, q, val) => `${sp}${attr}=${q}${rw(val)}${q}`
   );
 
-  // ── srcset= ───────────────────────────────────────────────────────────────
+  // srcset=
   html = html.replace(
     /(\ssrcset=)(["'])(.*?)\2/gi,
     (_, attr, q, val) => {
@@ -86,31 +87,37 @@ function rewriteHtml(html, targetUrl, proxyBase) {
     }
   );
 
-  // ── url() in inline style= and <style> blocks ────────────────────────────
+  // url() in inline style= attributes only (NOT inside <script> blocks)
+  // We do this carefully: only within style="..." attribute values
   html = html.replace(
-    /url\((["']?)([^"')]+)\1\)/gi,
-    (_, q, u) => `url(${q}${rw(u.trim())}${q})`
+    /(style=["'][^"']*?)url\((["']?)([^"')]+)\2\)/gi,
+    (_, pre, q, u) => `${pre}url(${q}${rw(u.trim())}${q})`
   );
 
-  // ── content= on meta with url ────────────────────────────────────────────
+  // url() inside <style> blocks
   html = html.replace(
-    /(<meta[^>]+content=["'][^"']*url=)(https?:\/\/[^"']+)/gi,
-    (_, pre, u) => `${pre}${pfx}${encodeURIComponent(u)}`
+    /(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi,
+    (_, open, content, close) => {
+      const rewritten = content.replace(
+        /url\((["']?)([^"')]+)\1\)/gi,
+        (m, q, u) => `url(${q}${rw(u.trim())}${q})`
+      );
+      return open + rewritten + close;
+    }
   );
 
-  // ── <a href=> — rewrite for navigation through proxy ─────────────────────
-  // We DO rewrite these so clicking links navigates through proxy
+  // <a href=> — rewrite for navigation through proxy
   html = html.replace(
     /(<a\b[^>]*?\s)(href)=(["'])((?!#|javascript:|mailto:|tel:)[^"']+)\3/gi,
     (_, pre, attr, q, val) => `${pre}${attr}=${q}${rw(val)}${q}`
   );
 
-  // ── Remove integrity + crossorigin so rewritten assets load ──────────────
+  // Remove integrity + crossorigin so rewritten assets load
   html = html.replace(/\s+integrity=(["'])[^"']*\1/gi, "");
   html = html.replace(/\s+crossorigin=(["'])[^"']*\1/gi, "");
   html = html.replace(/\scrossorigin(?=[\s>])/gi, "");
 
-  // ── Remove nonce from scripts/styles ────────────────────────────────────
+  // Remove nonce from scripts/styles
   html = html.replace(/\s+nonce=(["'])[^"']*\1/gi, "");
 
   return html;
@@ -197,8 +204,8 @@ function proxify(u){
 function notifyUrl(href){
   try{
     var real=href||__T;
-    if(real&&real.indexOf(__P)!==-1){
-      try{real=decodeURIComponent(real.slice(real.indexOf(__P)+__P.length));}catch(e){}
+    if(real&&real.indexOf('/fetch?url=')!==-1){
+      try{real=decodeURIComponent(real.slice(real.indexOf('/fetch?url=')+'/fetch?url='.length));}catch(e){}
     }
     if(__PAR&&__PAR!==window){
       __PAR.postMessage({type:'mos-url-update',url:real},'*');
@@ -206,7 +213,7 @@ function notifyUrl(href){
   }catch(e){}
 }
 
-/* ── Anti-detection ────────────────────────────────────────────────────── */
+/* ── Anti-detection ──────────────────────────────────────────────────── */
 try{Object.defineProperty(window,'top',         {get:function(){return window;},configurable:true});}catch(e){}
 try{Object.defineProperty(window,'parent',      {get:function(){return window;},configurable:true});}catch(e){}
 try{Object.defineProperty(window,'frameElement',{get:function(){return null;  },configurable:true});}catch(e){}
@@ -268,7 +275,7 @@ try{
 
 try{window.addEventListener('securitypolicyviolation',function(e){e.stopImmediatePropagation();e.preventDefault();},true);}catch(e){}
 
-/* ── Proxy fetch ───────────────────────────────────────────────────────── */
+/* ── Proxy fetch ─────────────────────────────────────────────────────── */
 try{
   var _oFetch=window.fetch;
   if(_oFetch){
@@ -283,7 +290,7 @@ try{
   }
 }catch(e){}
 
-/* ── Proxy XHR ─────────────────────────────────────────────────────────── */
+/* ── Proxy XHR ───────────────────────────────────────────────────────── */
 try{
   var _oXHR=XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open=function(method,url2){
@@ -293,24 +300,7 @@ try{
   };
 }catch(e){}
 
-/* ── Proxy image src ───────────────────────────────────────────────────── */
-try{
-  var _oImage=window.Image;
-  window.Image=function(w,h){
-    var img=new _oImage(w,h);
-    var _oSrc=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');
-    if(_oSrc&&_oSrc.set){
-      Object.defineProperty(img,'src',{
-        get:function(){return _oSrc.get.call(this);},
-        set:function(v){_oSrc.set.call(this,proxify(v));},
-        configurable:true
-      });
-    }
-    return img;
-  };
-}catch(e){}
-
-/* ── Proxy HTMLImageElement.src globally ────────────────────────────────── */
+/* ── Proxy HTMLImageElement.src globally ────────────────────────────── */
 try{
   var _imgDesc=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');
   if(_imgDesc&&_imgDesc.set){
@@ -323,7 +313,7 @@ try{
   }
 }catch(e){}
 
-/* ── Proxy HTMLScriptElement.src ────────────────────────────────────────── */
+/* ── Proxy HTMLScriptElement.src ────────────────────────────────────── */
 try{
   var _scrDesc=Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype,'src');
   if(_scrDesc&&_scrDesc.set){
@@ -336,7 +326,7 @@ try{
   }
 }catch(e){}
 
-/* ── location.assign/replace ────────────────────────────────────────────── */
+/* ── location.assign/replace ─────────────────────────────────────────── */
 try{
   var _oAssign=location.assign.bind(location);
   var _oReplace=location.replace.bind(location);
@@ -344,7 +334,7 @@ try{
   location.replace=function(u){try{u=proxify(u);}catch(e){} _oReplace(u);};
 }catch(e){}
 
-/* ── history ────────────────────────────────────────────────────────────── */
+/* ── history ─────────────────────────────────────────────────────────── */
 try{
   function wrapHistory(orig){
     return function(state,title,url2){
@@ -358,11 +348,11 @@ try{
   history.replaceState=wrapHistory(history.replaceState.bind(history));
 }catch(e){}
 
-/* ── Worker / SharedWorker ──────────────────────────────────────────────── */
+/* ── Worker / SharedWorker ──────────────────────────────────────────── */
 try{var _OW=window.Worker;       if(_OW){window.Worker=function(u,o){try{u=proxify(u);}catch(e){}return new _OW(u,o);};window.Worker.prototype=_OW.prototype;}}catch(e){}
 try{var _OS=window.SharedWorker; if(_OS){window.SharedWorker=function(u,o){try{u=proxify(u);}catch(e){}return new _OS(u,o);};window.SharedWorker.prototype=_OS.prototype;}}catch(e){}
 
-/* ── window.open ────────────────────────────────────────────────────────── */
+/* ── window.open ─────────────────────────────────────────────────────── */
 try{
   var _oOpen=window.open;
   window.open=function(u,t,f){
@@ -371,13 +361,13 @@ try{
   };
 }catch(e){}
 
-/* ── document.referrer ──────────────────────────────────────────────────── */
+/* ── document.referrer ──────────────────────────────────────────────── */
 try{Object.defineProperty(document,'referrer',{get:function(){return __O+'/';},configurable:true});}catch(e){}
 
 notifyUrl(__T);
 window.addEventListener('popstate',function(){notifyUrl(window.location.href);});
 
-/* ── DOM link interception ──────────────────────────────────────────────── */
+/* ── DOM link interception ──────────────────────────────────────────── */
 document.addEventListener('click',function(e){
   var el=e.target;
   while(el&&el.tagName!=='A')el=el.parentElement;
@@ -400,10 +390,9 @@ document.addEventListener('click',function(e){
   }catch(e){window.location.href=proxify(abs);}
 },true);
 
-/* ── MutationObserver — patch dynamic nodes ─────────────────────────────── */
+/* ── MutationObserver — patch dynamic nodes ─────────────────────────── */
 function fixNode(node){
   if(!node||node.nodeType!==1)return;
-  var tag=(node.tagName||'').toUpperCase();
 
   function fixA(attr){
     try{
@@ -417,7 +406,6 @@ function fixNode(node){
   ['src','href','poster','action','data-src','data-lazy','data-lazy-src',
    'data-original','data-bg','data-background','data-image','data-url'].forEach(fixA);
 
-  /* srcset */
   try{
     var ss=node.getAttribute('srcset');
     if(ss){
@@ -429,7 +417,6 @@ function fixNode(node){
     }
   }catch(e){}
 
-  /* inline style backgroundImage */
   try{
     if(node.style&&node.style.backgroundImage){
       node.style.backgroundImage=node.style.backgroundImage.replace(
@@ -440,14 +427,8 @@ function fixNode(node){
   }catch(e){}
 }
 
-/* Initial sweep */
-try{
-  document.querySelectorAll('*').forEach(function(node){
-    try{fixNode(node);}catch(e){}
-  });
-}catch(e){}
+try{document.querySelectorAll('*').forEach(function(node){try{fixNode(node);}catch(e){}});}catch(e){}
 
-/* Watch for additions */
 try{
   new MutationObserver(function(muts){
     muts.forEach(function(m){
