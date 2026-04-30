@@ -10,6 +10,16 @@ const OWNER_PASSWORD = "messi2be";
 const USERS_KEY      = "mos_users";
 const SESSION_KEY    = "mos_session";
 
+// --- CINEMA PROVIDERS CONFIGURATION ---
+const PROVIDERS = [
+  { id: "mapple", name: "MappleTv", isFrench: false, urls: { movie: "https://mappletv.uk/watch/movie/{id}", tv: "https://mappletv.uk/watch/tv/{id}-{season}-{episode}" } },
+  { id: "vidsrcsu", name: "VidSrc.SU", isFrench: false, urls: { movie: "https://vidsrc.su/embed/movie/{id}", tv: "https://vidsrc.su/embed/tv/{id}/{season}/{episode}" } },
+  { id: "vidsrccx", name: "VidSrc.CX", isFrench: false, urls: { movie: "https://vidsrc.cx/embed/movie/{id}", tv: "https://vidsrc.cx/embed/tv/{id}/{season}/{episode}" } },
+  { id: "vidlink", name: "VidLink", isFrench: false, urls: { movie: "https://vidlink.pro/movie/{id}", tv: "https://vidlink.pro/tv/{id}/{season}/{episode}" } },
+  { id: "frembed", name: "Frembed (FR)", isFrench: true, urls: { movie: "https://frembed.icu/api/film.php?id={id}", tv: "https://frembed.icu/api/serie.php?id={id}&sa={season}&epi={episode}" } },
+  { id: "rive", name: "RiveStream", isFrench: false, urls: { movie: "https://rivestream.org/embed?type=movie&id={id}", tv: "https://rivestream.org/embed?type=tv&id={id}&season={season}&episode={episode}" } }
+];
+
 // ── Clock ─────────────────────────────────────────────────────────────────────
 function updateClock() {
   const now  = new Date();
@@ -650,6 +660,99 @@ document.addEventListener("click",(e)=>{
     startMenuOpen=false;menu.classList.add("hidden");if(btn)btn.classList.remove("active");
   }
 });
+
+/**
+ * CINEMA SEARCH: The entry dialog to input TMDB IDs
+ */
+function openCinemaSearch() {
+    const content = `
+        <div style="padding:20px; color:var(--text); font-family:var(--sans);">
+            <div style="margin-bottom:15px;">
+                <label style="display:block; font-size:10px; color:var(--gold); letter-spacing:1px; margin-bottom:8px;">TARGET_ID (TMDB)</label>
+                <input id="cinema-id-input" class="auth-input" type="text" placeholder="e.g. 157336" 
+                       style="width:100%; background:var(--surface); border:1px solid var(--border-hi); color:var(--text); padding:10px; border-radius:var(--radius);">
+            </div>
+            
+            <div style="display:flex; gap:20px; margin-bottom:20px; font-size:12px;">
+                <label style="cursor:pointer"><input type="radio" name="ctype" value="movie" checked> MOVIE</label>
+                <label style="cursor:pointer"><input type="radio" name="ctype" value="tv"> TV_SERIES</label>
+            </div>
+
+            <div id="tv-extras" style="display:none; gap:10px; margin-bottom:20px;">
+                <div style="flex:1">
+                    <label style="display:block; font-size:9px; color:var(--text-mid);">SEASON</label>
+                    <input id="cinema-s" class="auth-input" type="number" value="1" style="width:100%; text-align:center;">
+                </div>
+                <div style="flex:1">
+                    <label style="display:block; font-size:9px; color:var(--text-mid);">EPISODE</label>
+                    <input id="cinema-e" class="auth-input" type="number" value="1" style="width:100%; text-align:center;">
+                </div>
+            </div>
+
+            <button class="auth-btn" id="cinema-launch-btn" 
+                    style="width:100%; background:var(--gold); color:var(--bg); border-radius:var(--radius); border:none; padding:12px; font-weight:bold; cursor:pointer;">
+                INITIALIZE_STREAM
+            </button>
+        </div>
+    `;
+
+    const win = createWindow('CINEMA_INIT', content);
+    
+    // UI Logic for toggling TV fields
+    const radios = win.querySelectorAll('input[name="ctype"]');
+    radios.forEach(r => r.addEventListener('change', (e) => {
+        win.querySelector('#tv-extras').style.display = e.target.value === 'tv' ? 'flex' : 'none';
+    }));
+
+    // Launch Button Logic
+    win.querySelector('#cinema-launch-btn').onclick = () => {
+        const id = win.querySelector('#cinema-id-input').value;
+        const type = win.querySelector('input[name="ctype"]:checked').value;
+        const s = win.querySelector('#cinema-s').value;
+        const e = win.querySelector('#cinema-e').value;
+        
+        if(!id) return alert("ACCESS_DENIED: TMDB_ID REQUIRED");
+        
+        // Remove the search window and open the player
+        const winId = win.id.replace('win-', '');
+        closeWindow(winId); 
+        openCinemaPlayer(id, type, s, e);
+    };
+}
+
+/**
+ * CINEMA PLAYER: The actual video player window
+ */
+function openCinemaPlayer(tmdbId, type, season, episode) {
+    const optionsHtml = PROVIDERS.map(p => 
+        `<option value="${p.id}">${p.name.toUpperCase()}</option>`
+    ).join('');
+
+    const content = `
+        <div class="cinema-container">
+            <div class="cinema-controls">
+                <select id="provider-select" class="cinema-select">${optionsHtml}</select>
+                <div style="font-family:var(--mono); font-size:10px; color:var(--text-mid); text-transform:uppercase;">
+                    LINK: ${tmdbId} ${type === 'tv' ? `// S${season}:E${episode}` : ''}
+                </div>
+            </div>
+            <iframe id="cinema-frame" class="cinema-frame" allowfullscreen src=""></iframe>
+        </div>
+    `;
+
+    const win = createWindow('NEURAL_STREAM', content);
+    const select = win.querySelector('#provider-select');
+    const iframe = win.querySelector('#cinema-frame');
+
+    const updateIframe = (pId) => {
+        const p = PROVIDERS.find(x => x.id === pId);
+        const url = type === 'tv' ? p.urls.tv : p.urls.movie;
+        iframe.src = url.replace('{id}', tmdbId).replace('{season}', season).replace('{episode}', episode);
+    };
+
+    select.onchange = (e) => updateIframe(e.target.value);
+    updateIframe(PROVIDERS[0].id); // Initial stream launch
+}
 
 // ══════════════════════════════════════
 //  INIT
