@@ -674,34 +674,61 @@ frame.addEventListener("load", () => {
   statusTxt.textContent = "Done";
   statusExt.textContent = _realUrl || urlBar.value || "";
 
-  // Check if proxy returned an error JSON
   try {
-    const body = frame.contentDocument?.body?.innerText?.trim() || "";
-    if (body.startsWith("{") && body.includes('"error"')) {
-      const parsed = JSON.parse(body);
-      if (parsed.error) {
-        // Auto-try fallback
-        showRetry("Proxy error — trying fallback…");
-        setTimeout(tryFallback, 500);
-        return;
-      }
+    const doc  = frame.contentDocument;
+    const body = doc?.body;
+    if (!body) return;
+
+    const innerText = (body.innerText  || "").trim();
+    const innerHTML = (body.innerHTML  || "").trim();
+
+    // Proxy returned JSON error
+    if (innerHTML.startsWith("{") && innerHTML.includes('"error"')) {
+      try {
+        const parsed = JSON.parse(innerText);
+        if (parsed.error) {
+          showRetry("Proxy error — trying fallback…");
+          setTimeout(tryFallback, 400);
+          return;
+        }
+      } catch {}
     }
-    // Blank page detection — if body is empty after load, try fallback
-    if (frame.contentDocument && frame.contentDocument.body) {
-      const text = (frame.contentDocument.body.innerText || "").trim();
-      const html = (frame.contentDocument.body.innerHTML || "").trim();
-      if ((!text && !html) || html === "") {
-        setTimeout(() => {
-          if (loading) return; // already moved on
-          // Only auto-fallback if we have a real URL
-          if (_realUrl && _fallbackIdx === 0) {
-            showRetry("Page appears blank — trying fallback…");
-            tryFallback();
+
+    // Completely blank body
+    if (!innerHTML || innerHTML === "") {
+      if (_realUrl && _fallbackIdx === 0) {
+        showRetry("Page blank — trying fallback proxy…");
+        setTimeout(tryFallback, 600);
+      }
+      return;
+    }
+
+    // Body has content but NO images loaded (all 0x0 or broken)
+    // Check after a short delay to let images attempt loading
+    setTimeout(() => {
+      try {
+        const imgs = Array.from(doc.querySelectorAll("img"));
+        if (imgs.length > 3) {
+          const broken = imgs.filter(i => i.naturalWidth === 0 && i.complete).length;
+          const ratio  = broken / imgs.length;
+          if (ratio > 0.8 && _fallbackIdx === 0) {
+            // Most images broken — silently try to patch them
+            imgs.forEach(img => {
+              const src = img.getAttribute("src");
+              if (src && !src.startsWith("/fetch?url=") && !src.startsWith("data:")) {
+                try {
+                  img.src = "/fetch?url=" + encodeURIComponent(new URL(src, _realUrl).href);
+                } catch {}
+              }
+            });
           }
-        }, 2000);
-      }
-    }
-  } catch { /* cross-origin — expected, means page loaded fine */ }
+        }
+      } catch {}
+    }, 1500);
+
+  } catch {
+    // cross-origin means page loaded fine in proxy
+  }
 });
 
 frame.addEventListener("error", () => {
