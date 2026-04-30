@@ -16,7 +16,6 @@
   </head>
   <body>
 
-    <!-- SVG SYMBOLS -->
     <svg width="0" height="0" style="position:absolute;overflow:hidden">
       <defs>
         <symbol id="ico-hex" viewBox="0 0 24 24">
@@ -35,9 +34,9 @@
           <path d="M5 4h9l5 5v11a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z" fill="none" stroke="currentColor" stroke-width="1.5"/>
           <path d="M14 4v5h5" fill="none" stroke="currentColor" stroke-width="1.5"/>
         </symbol>
-        <symbol id="ico-cog" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <symbol id="ico-search" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         </symbol>
         <symbol id="ico-calc" viewBox="0 0 24 24">
           <rect x="4" y="2" width="16" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
@@ -48,10 +47,6 @@
           <circle cx="8"  cy="17" r="1" fill="currentColor"/>
           <circle cx="12" cy="17" r="1" fill="currentColor"/>
           <rect x="14.5" y="15.5" width="3" height="3" rx="0.5" fill="currentColor"/>
-        </symbol>
-        <symbol id="ico-shield" viewBox="0 0 24 24">
-          <path d="M12 2L4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6z" fill="none" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M8 12l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         </symbol>
         <symbol id="ico-games" viewBox="0 0 24 24">
           <path d="M6 12h4M8 10v4M15 12h.01M18 11h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -69,24 +64,9 @@
           <circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
           <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         </symbol>
-        <symbol id="ico-sun" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </symbol>
-        <symbol id="ico-back" viewBox="0 0 16 16">
-          <path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </symbol>
-        <symbol id="ico-fwd" viewBox="0 0 16 16">
-          <path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </symbol>
-        <symbol id="ico-reload" viewBox="0 0 16 16">
-          <path d="M13 8A5 5 0 113 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <path d="M13 4v4h-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </symbol>
       </defs>
     </svg>
 
-    <!-- AUTH SCREEN -->
     <div id="auth-screen">
       <div class="auth-card">
         <div class="auth-logo">
@@ -137,7 +117,6 @@
       </div>
     </div>
 
-    <!-- BOOT SCREEN -->
     <div id="boot-screen" style="display:none">
       <div class="boot-sigil">
         <svg width="56" height="56" viewBox="0 0 24 24" style="color:var(--gold)"><use href="#ico-hex"/></svg>
@@ -148,10 +127,8 @@
       <div class="boot-bar-wrap"><div class="boot-bar" id="boot-bar"></div></div>
     </div>
 
-    <!-- DESKTOP -->
     <div id="desktop" class="hidden">
 
-      <!-- TOP BAR -->
       <div id="topbar">
         <div class="topbar-left">
           <div class="bar-logo">
@@ -171,7 +148,6 @@
         </div>
       </div>
 
-      <!-- DESKTOP ICONS -->
       <div id="desktop-icons">
         <div class="desktop-icon" onclick="openBrowser()">
           <div class="icon-img"><svg width="32" height="32" viewBox="0 0 24 24"><use href="#ico-globe"/></svg></div>
@@ -185,6 +161,10 @@
           <div class="icon-img"><svg width="32" height="32" viewBox="0 0 24 24"><use href="#ico-term"/></svg></div>
           <span>Terminal</span>
         </div>
+        <div class="desktop-icon" onclick="openCinemaSearch()">
+          <div class="icon-img"><svg width="32" height="32" viewBox="0 0 24 24"><use href="#ico-search"/></svg></div>
+          <span>Cinema</span>
+        </div>
         <div class="desktop-icon" onclick="openCalculator()">
           <div class="icon-img"><svg width="32" height="32" viewBox="0 0 24 24"><use href="#ico-calc"/></svg></div>
           <span>Calculator</span>
@@ -193,16 +173,10 @@
           <div class="icon-img"><svg width="32" height="32" viewBox="0 0 24 24"><use href="#ico-games"/></svg></div>
           <span>Games</span>
         </div>
-        <div class="desktop-icon" onclick="openAbout()">
-          <div class="icon-img"><svg width="32" height="32" viewBox="0 0 24 24"><use href="#ico-hex"/></svg></div>
-          <span>About</span>
-        </div>
       </div>
 
-      <!-- WINDOWS LAYER -->
       <div id="windows"></div>
 
-      <!-- TASKBAR -->
       <div id="taskbar">
         <button class="taskbar-start" onclick="toggleStartMenu()">
           <svg width="16" height="16" viewBox="0 0 24 24" style="color:var(--gold)"><use href="#ico-hex"/></svg>
@@ -213,7 +187,6 @@
         <div id="taskbar-clock"></div>
       </div>
 
-      <!-- START MENU -->
       <div id="start-menu" class="hidden">
         <div class="sm-header">
           <svg width="13" height="13" viewBox="0 0 24 24" style="color:var(--gold)"><use href="#ico-hex"/></svg>
@@ -224,6 +197,10 @@
           <div class="sm-app" onclick="openBrowser();toggleStartMenu()">
             <div class="sm-app-icon"><svg width="20" height="20" viewBox="0 0 24 24"><use href="#ico-globe"/></svg></div>
             <span>Browser</span>
+          </div>
+          <div class="sm-app" onclick="openCinemaSearch();toggleStartMenu()">
+            <div class="sm-app-icon"><svg width="20" height="20" viewBox="0 0 24 24"><use href="#ico-search"/></svg></div>
+            <span>Cinema</span>
           </div>
           <div class="sm-app" onclick="openFiles();toggleStartMenu()">
             <div class="sm-app-icon"><svg width="20" height="20" viewBox="0 0 24 24"><use href="#ico-files"/></svg></div>
@@ -241,14 +218,8 @@
             <div class="sm-app-icon"><svg width="20" height="20" viewBox="0 0 24 24"><use href="#ico-games"/></svg></div>
             <span>Games</span>
           </div>
-          <div class="sm-app" onclick="openAbout();toggleStartMenu()">
-            <div class="sm-app-icon"><svg width="20" height="20" viewBox="0 0 24 24"><use href="#ico-hex"/></svg></div>
-            <span>About</span>
-          </div>
         </div>
       </div>
 
-    </div><!-- end desktop -->
-
-  </body>
+    </div></body>
 </html>
