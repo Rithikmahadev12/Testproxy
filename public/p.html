@@ -28,10 +28,9 @@
 
     #layout       { display: flex; flex-direction: column; width: 100%; height: 100%; }
     #toolbar      { display: flex; align-items: center; gap: 5px; padding: 6px 10px; background: var(--surface2); border-bottom: 1px solid var(--border); height: 44px; flex-shrink: 0; }
-    #content-area { flex: 1; position: relative; background: #fff; overflow: hidden; }
+    #content-area { flex: 1; position: relative; background: #000; overflow: hidden; }
     #statusbar    { height: 22px; background: var(--surface2); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px; gap: 10px; flex-shrink: 0; }
 
-    /* ── Toolbar buttons ─────────────────────────────────────────────────── */
     .tb-btn {
       width: 30px; height: 30px; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
@@ -43,7 +42,6 @@
     .tb-btn:active:not(:disabled){ transform: scale(.93); }
     .tb-btn:disabled              { opacity: .3; cursor: not-allowed; }
 
-    /* ── URL bar ──────────────────────────────────────────────────────────── */
     #url-wrap {
       flex: 1; display: flex; align-items: center; gap: 0;
       background: var(--surface3); border: 1px solid var(--border);
@@ -72,7 +70,6 @@
     }
     #go-btn:hover { background: var(--gold2); }
 
-    /* ── Loading bar ──────────────────────────────────────────────────────── */
     #loading-bar {
       position: absolute; top: 0; left: 0; height: 2px; width: 0%;
       background: linear-gradient(90deg, var(--gold), var(--gold2));
@@ -80,7 +77,7 @@
       box-shadow: 0 0 8px rgba(122,158,126,.6);
     }
 
-    /* ── New tab / home screen ────────────────────────────────────────────── */
+    /* ── New tab ─────────────────────────────────────────────────────── */
     #newtab {
       position: absolute; inset: 0; display: flex; flex-direction: column;
       align-items: center; justify-content: center; gap: 22px;
@@ -114,34 +111,67 @@
     }
     .nt-link:hover { background: var(--surface3); color: var(--text); border-color: var(--border-hi); }
 
-    /* ── Page frame ───────────────────────────────────────────────────────── */
+    /* ── Page frame ──────────────────────────────────────────────────── */
     #page-frame {
       position: absolute; inset: 0; width: 100%; height: 100%;
       border: none; display: none; background: #fff;
     }
 
-    /* ── Error page ───────────────────────────────────────────────────────── */
+    /* ── YouTube / special embed ─────────────────────────────────────── */
+    #yt-embed {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      border: none; display: none; background: #000;
+    }
+
+    /* ── Error page ──────────────────────────────────────────────────── */
     #err-page {
       position: absolute; inset: 0; display: none;
       flex-direction: column; align-items: center; justify-content: center;
-      gap: 12px; background: var(--bg); z-index: 6;
+      gap: 12px; background: var(--bg); z-index: 6; text-align: center; padding: 40px;
     }
     #err-page.show { display: flex; }
     .err-ico   { font-size: 42px; }
     .err-title { font-family: var(--mono); font-size: 16px; color: var(--red); letter-spacing: .1em; }
-    .err-msg   { font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: .04em; text-align: center; max-width: 420px; line-height: 1.9; white-space: pre-line; }
+    .err-msg   { font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: .04em; text-align: center; max-width: 480px; line-height: 2; white-space: pre-line; }
+    .err-actions { display: flex; gap: 10px; margin-top: 4px; flex-wrap: wrap; justify-content: center; }
     .err-btn   { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 20px; font-family: var(--mono); font-size: 10px; color: var(--text-mid); cursor: pointer; letter-spacing: .08em; transition: all .15s; }
     .err-btn:hover { background: var(--surface3); color: var(--text); border-color: var(--border-hi); }
+    .err-btn.primary { background: var(--gold); color: #000; border-color: var(--gold); }
+    .err-btn.primary:hover { background: var(--gold2); }
 
-    /* ── Status bar ───────────────────────────────────────────────────────── */
+    /* ── SW status badge ─────────────────────────────────────────────── */
+    #sw-badge {
+      position: absolute; top: 6px; right: 6px;
+      font-family: var(--mono); font-size: 9px; letter-spacing: .08em;
+      padding: 3px 8px; border-radius: 4px; z-index: 20;
+      background: rgba(7,16,10,0.85); border: 1px solid var(--border);
+      color: var(--text-dim); pointer-events: none;
+    }
+    #sw-badge.active { border-color: rgba(74,222,128,0.4); color: #4ade80; }
+    #sw-badge.inactive { border-color: rgba(255,107,107,0.4); color: #ff6b6b; }
+
     #status-text  { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: .04em; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #status-extra { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: .04em; flex-shrink: 0; }
+
+    /* ── Retry overlay (shows while trying fallback) ─────────────────── */
+    #retry-overlay {
+      position: absolute; inset: 0; display: none;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 14px; background: var(--bg); z-index: 7;
+    }
+    #retry-overlay.show { display: flex; }
+    .retry-spinner {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 2px solid var(--border); border-top-color: var(--gold);
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .retry-msg { font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: .08em; }
   </style>
 </head>
 <body>
 <div id="layout">
 
-  <!-- Toolbar -->
   <div id="toolbar">
     <button class="tb-btn" id="btn-back"   title="Back"    onclick="navBack()"   disabled>
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -167,11 +197,10 @@
     <button id="go-btn" onclick="navigate()">GO</button>
   </div>
 
-  <!-- Content -->
   <div id="content-area">
     <div id="loading-bar"></div>
+    <div id="sw-badge">● SW</div>
 
-    <!-- Home / New Tab -->
     <div id="newtab">
       <div class="nt-logo">
         <svg width="44" height="44" viewBox="0 0 24 24" fill="none" style="color:#7a9e7e">
@@ -180,46 +209,53 @@
         </svg>
       </div>
       <div class="nt-title">MATRIARCHS <span>BROWSER</span></div>
-      <div class="nt-sub">SOVEREIGN BROWSING — POWERED BY MOS PROXY v3</div>
+      <div class="nt-sub">SOVEREIGN BROWSING — POWERED BY MOS PROXY v4</div>
       <div class="nt-search-wrap">
-        <input id="nt-search" type="text" placeholder="Search Brave or enter a URL…" spellcheck="false" autocomplete="off"/>
+        <input id="nt-search" type="text" placeholder="Search or enter a URL…" spellcheck="false" autocomplete="off"/>
         <button id="nt-go" onclick="ntNavigate()">GO</button>
       </div>
       <div class="nt-links">
-        <div class="nt-link" onclick="loadUrl('https://search.brave.com')">🦁 Brave</div>
+        <div class="nt-link" onclick="loadUrl('https://www.google.com')">🔍 Google</div>
         <div class="nt-link" onclick="loadUrl('https://www.youtube.com')">▶ YouTube</div>
+        <div class="nt-link" onclick="loadUrl('https://www.tiktok.com')">🎵 TikTok</div>
+        <div class="nt-link" onclick="loadUrl('https://www.reddit.com')">📰 Reddit</div>
+        <div class="nt-link" onclick="loadUrl('https://www.twitch.tv')">🎮 Twitch</div>
         <div class="nt-link" onclick="loadUrl('https://www.wikipedia.org')">📖 Wikipedia</div>
         <div class="nt-link" onclick="loadUrl('https://github.com')">🐙 GitHub</div>
-        <div class="nt-link" onclick="loadUrl('https://www.reddit.com')">📰 Reddit</div>
         <div class="nt-link" onclick="loadUrl('https://news.ycombinator.com')">⚡ HN</div>
-        <div class="nt-link" onclick="loadUrl('https://www.twitch.tv')">🎮 Twitch</div>
+        <div class="nt-link" onclick="loadUrl('https://www.instagram.com')">📸 Instagram</div>
+        <div class="nt-link" onclick="loadUrl('https://x.com')">𝕏 Twitter/X</div>
         <div class="nt-link" onclick="loadUrl('https://discord.com/app')">💬 Discord</div>
-        <div class="nt-link" onclick="loadUrl('https://www.google.com')">🔍 Google</div>
-        <div class="nt-link" onclick="loadUrl('https://www.bing.com')">🔎 Bing</div>
+        <div class="nt-link" onclick="loadUrl('https://search.brave.com')">🦁 Brave</div>
       </div>
     </div>
 
-    <!-- Error page -->
     <div id="err-page">
       <div class="err-ico">⚠</div>
       <div class="err-title" id="err-title">CONNECTION ERROR</div>
       <div class="err-msg"   id="err-msg">Unable to load page.</div>
-      <div style="display:flex;gap:10px;margin-top:4px">
+      <div class="err-actions">
         <button class="err-btn" onclick="navReload()">Try Again</button>
+        <button class="err-btn" onclick="tryFallback()">Try Fallback Proxy</button>
+        <button class="err-btn" onclick="openDirect()">Open Directly ↗</button>
         <button class="err-btn" onclick="goHome()">Home</button>
       </div>
     </div>
 
-    <!-- The actual page frame -->
-    <iframe
-      id="page-frame"
-      src="about:blank"
-      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-downloads allow-modals allow-top-navigation"
-      allow="autoplay; fullscreen; encrypted-media; clipboard-write; clipboard-read; payment; geolocation; camera; microphone"
+    <div id="retry-overlay">
+      <div class="retry-spinner"></div>
+      <div class="retry-msg" id="retry-msg">Trying fallback proxy…</div>
+    </div>
+
+    <iframe id="page-frame" src="about:blank"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-downloads allow-modals allow-top-navigation allow-top-navigation-by-user-activation"
+      allow="autoplay; fullscreen; encrypted-media; clipboard-write; clipboard-read; payment; geolocation; camera; microphone; picture-in-picture"
     ></iframe>
+
+    <!-- Used for YouTube/special embeds -->
+    <iframe id="yt-embed" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
   </div>
 
-  <!-- Status bar -->
   <div id="statusbar">
     <span id="status-text">Ready</span>
     <span id="status-extra"></span>
@@ -229,17 +265,46 @@
 <script>
 "use strict";
 
-// ── State ─────────────────────────────────────────────────────────────────────
-const history_  = [];  // navigation history (real URLs)
-let   histIdx   = -1;
-let   loading   = false;
-let   _realUrl  = "";
-let   _loadT    = null;
-let   _stuckT   = null;
+// ══════════════════════════════════════════════════════
+//  MOS Browser v4 — client-side service worker proxy
+// ══════════════════════════════════════════════════════
 
-// ── DOM refs ──────────────────────────────────────────────────────────────────
+const PROXY     = "/fetch?url=";
+const SW_PATH   = "/sw.js";
+
+// Fallback proxy services tried in order
+const FALLBACKS = [
+  (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+];
+
+// Sites that need special handling
+const SPECIAL = {
+  youtube: /^(www\.|m\.)?youtube\.com|^youtu\.be/i,
+  tiktok:  /^(www\.|vm\.)?tiktok\.com/i,
+  twitch:  /^(www\.)?twitch\.tv/i,
+  discord: /^(www\.|ptb\.|canary\.)?discord\.com/i,
+  instagram: /^(www\.)?instagram\.com/i,
+  twitter: /^(www\.)?twitter\.com|^x\.com/i,
+  netflix: /^(www\.)?netflix\.com/i,
+  spotify: /^(open\.|www\.)?spotify\.com/i,
+};
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const hist = [];
+let histIdx  = -1;
+let loading  = false;
+let _realUrl = "";
+let _loadT   = null;
+let _stuckT  = null;
+let _swReady = false;
+let _fallbackIdx = 0;
+
+// ── DOM ───────────────────────────────────────────────────────────────────────
 const urlBar     = document.getElementById("url-bar");
 const frame      = document.getElementById("page-frame");
+const ytFrame    = document.getElementById("yt-embed");
 const newtab     = document.getElementById("newtab");
 const ntSearch   = document.getElementById("nt-search");
 const loadBar    = document.getElementById("loading-bar");
@@ -252,14 +317,40 @@ const btnReload  = document.getElementById("btn-reload");
 const errPage    = document.getElementById("err-page");
 const errTitle   = document.getElementById("err-title");
 const errMsg     = document.getElementById("err-msg");
+const swBadge    = document.getElementById("sw-badge");
+const retryOverlay = document.getElementById("retry-overlay");
+const retryMsg   = document.getElementById("retry-msg");
 
-// ── URL helpers ───────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════
+//  SERVICE WORKER REGISTRATION
+// ══════════════════════════════════════════════════════
+async function registerSW() {
+  if (!("serviceWorker" in navigator)) {
+    swBadge.textContent = "● NO SW";
+    swBadge.className   = "inactive";
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.register(SW_PATH, { scope: "/" });
+    await navigator.serviceWorker.ready;
+    _swReady = true;
+    swBadge.textContent = "● SW ACTIVE";
+    swBadge.className   = "sw-badge active";
+    console.log("[MOS] Service worker active");
+  } catch (err) {
+    swBadge.textContent = "● SW OFF";
+    swBadge.className   = "sw-badge inactive";
+    console.warn("[MOS] SW registration failed:", err.message);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  URL HELPERS
+// ══════════════════════════════════════════════════════
 function normalise(input) {
   input = (input || "").trim();
   if (!input) return null;
-  // Already a proxy path
   if (input.startsWith("/fetch?url=")) return input;
-  // Looks like a URL?
   const looksUrl =
     /^https?:\/\//i.test(input) ||
     (/\.[a-z]{2,}(\/|$)/i.test(input) && !/\s/.test(input));
@@ -267,19 +358,27 @@ function normalise(input) {
     if (!/^https?:\/\//i.test(input)) input = "https://" + input;
     return input;
   }
-  // Default: Brave search
-  return "https://search.brave.com/search?q=" + encodeURIComponent(input);
+  return "https://www.google.com/search?q=" + encodeURIComponent(input);
 }
 
-function proxyUrl(target) {
-  return "/fetch?url=" + encodeURIComponent(target);
+function getHostname(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ""); }
+  catch { return ""; }
+}
+
+function detectSpecial(url) {
+  const h = getHostname(url);
+  for (const [name, re] of Object.entries(SPECIAL)) {
+    if (re.test(h)) return name;
+  }
+  return null;
 }
 
 function updateSecure(url) {
   if (!url) { secureIcon.textContent = ""; return; }
   if (url.startsWith("https://")) {
     secureIcon.textContent = "🔒";
-    secureIcon.title       = "Secure connection";
+    secureIcon.title       = "Secure";
     secureIcon.style.color = "#4ade80";
   } else {
     secureIcon.textContent = "⚠";
@@ -290,21 +389,23 @@ function updateSecure(url) {
 
 function updateNavBtns() {
   btnBack.disabled = histIdx <= 0;
-  btnFwd.disabled  = histIdx >= history_.length - 1;
+  btnFwd.disabled  = histIdx >= hist.length - 1;
 }
 
-// ── Loading bar ───────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════
+//  LOADING BAR
+// ══════════════════════════════════════════════════════
 function startLoading() {
   loading = true;
   clearTimeout(_loadT);
   loadBar.style.transition = "none";
   loadBar.style.width      = "0%";
   requestAnimationFrame(() => {
-    loadBar.style.transition = "width 1.8s ease-out";
-    loadBar.style.width      = "80%";
+    loadBar.style.transition = "width 2.5s ease-out";
+    loadBar.style.width      = "75%";
   });
-  btnReload.style.opacity  = "0.5";
-  statusTxt.textContent    = "Loading…";
+  btnReload.style.opacity = "0.5";
+  statusTxt.textContent   = "Loading…";
 }
 
 function stopLoading() {
@@ -319,12 +420,14 @@ function stopLoading() {
   btnReload.style.opacity = "1";
 }
 
-// ── Error page ────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════
+//  ERROR / RETRY OVERLAY
+// ══════════════════════════════════════════════════════
 function showError(title, msg) {
   errTitle.textContent = title;
   errMsg.textContent   = msg;
   errPage.classList.add("show");
-  frame.style.display  = "none";
+  hideFrame();
   stopLoading();
 }
 
@@ -332,36 +435,173 @@ function hideError() {
   errPage.classList.remove("show");
 }
 
-// ── Core navigation ───────────────────────────────────────────────────────────
+function showRetry(msg) {
+  retryMsg.textContent = msg || "Trying fallback…";
+  retryOverlay.classList.add("show");
+}
+
+function hideRetry() {
+  retryOverlay.classList.remove("show");
+}
+
+function hideFrame() {
+  frame.style.display  = "none";
+  ytFrame.style.display = "none";
+}
+
+function openDirect() {
+  if (_realUrl) window.open(_realUrl, "_blank");
+}
+
+// ══════════════════════════════════════════════════════
+//  SPECIAL SITE HANDLERS
+// ══════════════════════════════════════════════════════
+
+function handleYouTube(url) {
+  // Extract video ID if it's a video URL
+  let videoId = null;
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes("youtu.be")) {
+      videoId = u.pathname.slice(1).split("?")[0];
+    } else {
+      videoId = u.searchParams.get("v");
+    }
+  } catch {}
+
+  if (videoId) {
+    // Embed specific video
+    newtab.classList.add("hidden");
+    frame.style.display  = "none";
+    ytFrame.style.display = "block";
+    ytFrame.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0`;
+    stopLoading();
+    statusTxt.textContent = "YouTube (embed mode)";
+    return true;
+  }
+
+  // For YouTube homepage/search, try proxy
+  return false;
+}
+
+function handleTikTok(url) {
+  // Try to embed TikTok video
+  let videoId = null;
+  try {
+    const u = new URL(url);
+    const match = u.pathname.match(/\/video\/(\d+)/);
+    if (match) videoId = match[1];
+  } catch {}
+
+  if (videoId) {
+    newtab.classList.add("hidden");
+    frame.style.display   = "none";
+    ytFrame.style.display = "block";
+    ytFrame.src = `https://www.tiktok.com/embed/v2/${videoId}`;
+    stopLoading();
+    statusTxt.textContent = "TikTok (embed mode)";
+    return true;
+  }
+  return false;
+}
+
+// ══════════════════════════════════════════════════════
+//  FALLBACK PROXY CHAIN
+// ══════════════════════════════════════════════════════
+async function tryFallback() {
+  hideError();
+  hideRetry();
+
+  if (!_realUrl) return;
+  if (_fallbackIdx >= FALLBACKS.length) {
+    showError("ALL PROXIES FAILED",
+      `Could not load: ${_realUrl}\n\nThis site actively blocks all proxy methods.\nTry opening it directly in a new tab.`);
+    return;
+  }
+
+  const fallbackUrl = FALLBACKS[_fallbackIdx](_realUrl);
+  _fallbackIdx++;
+
+  showRetry(`Trying proxy ${_fallbackIdx} of ${FALLBACKS.length}…`);
+  startLoading();
+
+  try {
+    // Quick head check to see if fallback responds
+    const resp = await fetch(fallbackUrl, { method: "GET", signal: AbortSignal.timeout(8000) });
+    if (resp.ok) {
+      hideRetry();
+      newtab.classList.add("hidden");
+      frame.style.display   = "block";
+      ytFrame.style.display = "none";
+      frame.src = fallbackUrl;
+      statusTxt.textContent = `Via fallback proxy ${_fallbackIdx}`;
+      stopLoading();
+      return;
+    }
+  } catch {}
+
+  // That fallback failed, try next
+  hideRetry();
+  await tryFallback();
+}
+
+// ══════════════════════════════════════════════════════
+//  CORE NAVIGATION
+// ══════════════════════════════════════════════════════
 function loadUrl(rawUrl) {
   const norm = normalise(rawUrl);
   if (!norm) return;
 
   hideError();
+  hideRetry();
   _realUrl      = norm;
+  _fallbackIdx  = 0;
   urlBar.value  = norm;
   updateSecure(norm);
 
-  // Update history
-  if (histIdx < history_.length - 1) history_.splice(histIdx + 1);
-  history_.push(norm);
-  histIdx = history_.length - 1;
+  if (histIdx < hist.length - 1) hist.splice(histIdx + 1);
+  hist.push(norm);
+  histIdx = hist.length - 1;
   updateNavBtns();
 
+  startLoading();
   showFrame(norm);
 }
 
 function showFrame(targetUrl) {
   newtab.classList.add("hidden");
-  frame.style.display = "block";
-  startLoading();
+  hideError();
+  hideRetry();
   statusExt.textContent = targetUrl;
 
-  // Set iframe src to the proxied version
-  const proxied = proxyUrl(targetUrl);
-  frame.src = proxied;
+  const special = detectSpecial(targetUrl);
 
-  // Safety: if iframe hasn't triggered load in 30s, stop spinner
+  // ── YouTube ──────────────────────────────────────────────────────────
+  if (special === "youtube") {
+    if (handleYouTube(targetUrl)) return;
+    // Fall through to proxy for homepage/search
+  }
+
+  // ── TikTok ───────────────────────────────────────────────────────────
+  if (special === "tiktok") {
+    if (handleTikTok(targetUrl)) return;
+    // Fall through to proxy for browse
+  }
+
+  // ── Regular proxy via your server ─────────────────────────────────
+  ytFrame.style.display = "none";
+  frame.style.display   = "block";
+
+  // If SW is active, the frame can load the real URL directly
+  // and the SW will intercept+proxy all sub-requests automatically
+  if (_swReady) {
+    frame.src = PROXY + encodeURIComponent(targetUrl);
+  } else {
+    // No SW — use server proxy directly
+    frame.src = PROXY + encodeURIComponent(targetUrl);
+  }
+
+  // Timeout safety
   clearTimeout(_stuckT);
   _stuckT = setTimeout(() => {
     if (loading) {
@@ -386,39 +626,33 @@ function ntNavigate() {
 function navBack() {
   if (histIdx <= 0) return;
   histIdx--;
-  const u = history_[histIdx];
-  _realUrl = u;
-  urlBar.value = u;
-  updateSecure(u);
-  updateNavBtns();
-  hideError();
-  showFrame(u);
+  const u = hist[histIdx];
+  _realUrl = u; urlBar.value = u; updateSecure(u); updateNavBtns();
+  hideError(); showFrame(u);
 }
 
 function navFwd() {
-  if (histIdx >= history_.length - 1) return;
+  if (histIdx >= hist.length - 1) return;
   histIdx++;
-  const u = history_[histIdx];
-  _realUrl = u;
-  urlBar.value = u;
-  updateSecure(u);
-  updateNavBtns();
-  hideError();
-  showFrame(u);
+  const u = hist[histIdx];
+  _realUrl = u; urlBar.value = u; updateSecure(u); updateNavBtns();
+  hideError(); showFrame(u);
 }
 
 function navReload() {
-  hideError();
-  const u = history_[histIdx] || _realUrl;
-  if (u) showFrame(u);
+  hideError(); hideRetry();
+  const u = hist[histIdx] || _realUrl;
+  if (u) { _fallbackIdx = 0; showFrame(u); }
 }
 
 function goHome() {
-  hideError();
+  hideError(); hideRetry();
   clearTimeout(_stuckT);
   stopLoading();
   frame.style.display   = "none";
+  ytFrame.style.display = "none";
   frame.src             = "about:blank";
+  ytFrame.src           = "about:blank";
   _realUrl              = "";
   urlBar.value          = "";
   secureIcon.textContent = "";
@@ -432,41 +666,65 @@ function clearUrl() {
   urlBar.focus();
 }
 
-// ── iframe load/error events ──────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════
+//  FRAME EVENTS
+// ══════════════════════════════════════════════════════
 frame.addEventListener("load", () => {
   stopLoading();
   statusTxt.textContent = "Done";
   statusExt.textContent = _realUrl || urlBar.value || "";
 
-  // Try to detect a JSON error response from the proxy
+  // Check if proxy returned an error JSON
   try {
     const body = frame.contentDocument?.body?.innerText?.trim() || "";
     if (body.startsWith("{") && body.includes('"error"')) {
       const parsed = JSON.parse(body);
       if (parsed.error) {
-        showError("PROXY ERROR", parsed.error + (parsed.message ? "\n\n" + parsed.message : ""));
+        // Auto-try fallback
+        showRetry("Proxy error — trying fallback…");
+        setTimeout(tryFallback, 500);
         return;
       }
     }
-  } catch { /* cross-origin — expected */ }
+    // Blank page detection — if body is empty after load, try fallback
+    if (frame.contentDocument && frame.contentDocument.body) {
+      const text = (frame.contentDocument.body.innerText || "").trim();
+      const html = (frame.contentDocument.body.innerHTML || "").trim();
+      if ((!text && !html) || html === "") {
+        setTimeout(() => {
+          if (loading) return; // already moved on
+          // Only auto-fallback if we have a real URL
+          if (_realUrl && _fallbackIdx === 0) {
+            showRetry("Page appears blank — trying fallback…");
+            tryFallback();
+          }
+        }, 2000);
+      }
+    }
+  } catch { /* cross-origin — expected, means page loaded fine */ }
 });
 
 frame.addEventListener("error", () => {
   stopLoading();
-  showError("CONNECTION ERROR", "The frame failed to load.\nCheck the URL and try again.");
+  tryFallback();
 });
 
-// ── Messages from proxied pages (via injected runtime) ────────────────────────
+ytFrame.addEventListener("load", () => {
+  stopLoading();
+  statusTxt.textContent = "Done";
+});
+
+// ══════════════════════════════════════════════════════
+//  MESSAGES FROM PROXIED PAGES
+// ══════════════════════════════════════════════════════
 window.addEventListener("message", (e) => {
   if (!e.data || typeof e.data !== "object") return;
 
-  // Link clicked inside proxied page → navigate
   if (e.data.type === "mos-navigate-proxy" && e.data.url) {
     loadUrl(e.data.url);
     return;
   }
 
-  // SPA URL change (history.pushState etc.)
   if (e.data.type === "mos-url-update" && e.data.url) {
     const real = e.data.url;
     if (real && real !== _realUrl && !real.startsWith("about:") && !real.startsWith("/fetch")) {
@@ -474,21 +732,22 @@ window.addEventListener("message", (e) => {
       urlBar.value  = real;
       updateSecure(real);
       statusExt.textContent = real;
-      if (histIdx < history_.length - 1) history_.splice(histIdx + 1);
-      history_.push(real);
-      histIdx = history_.length - 1;
+      if (histIdx < hist.length - 1) hist.splice(histIdx + 1);
+      hist.push(real);
+      histIdx = hist.length - 1;
       updateNavBtns();
     }
     return;
   }
 
-  // Forwarded navigation request from parent OS
   if (e.data.type === "mos-navigate" && e.data.url) {
     loadUrl(e.data.url);
   }
 });
 
-// ── Key bindings ──────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════
+//  KEY BINDINGS
+// ══════════════════════════════════════════════════════
 urlBar.addEventListener("keydown", (e) => {
   if (e.key === "Enter")  { e.preventDefault(); navigate(); }
   if (e.key === "Escape") { urlBar.blur(); }
@@ -499,9 +758,14 @@ ntSearch.addEventListener("keydown", (e) => {
 document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "l") { e.preventDefault(); urlBar.select(); }
   if ((e.ctrlKey || e.metaKey) && e.key === "r") { e.preventDefault(); navReload(); }
-  if (e.altKey && e.key === "ArrowLeft")          navBack();
-  if (e.altKey && e.key === "ArrowRight")         navFwd();
+  if (e.altKey && e.key === "ArrowLeft")  navBack();
+  if (e.altKey && e.key === "ArrowRight") navFwd();
 });
+
+// ══════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════
+registerSW();
 </script>
 </body>
 </html>
