@@ -8,28 +8,18 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
   <style>
     :root {
-      --bg:        #07100a;
-      --surface:   #0b160e;
-      --surface2:  #111f14;
-      --surface3:  #182b1c;
-      --gold:      #7a9e7e;
-      --gold2:     #a3c9a8;
-      --text:      #ceefd4;
-      --text-dim:  #4a6650;
-      --text-mid:  #8aaa90;
-      --border:    rgba(122,158,126,0.12);
-      --border-hi: rgba(122,158,126,0.28);
-      --red:        #ff6b6b;
-      --mono:      'Space Mono', monospace;
-      --sans:      'Space Grotesk', sans-serif;
+      --bg:#07100a;--surface:#0b160e;--surface2:#111f14;--surface3:#182b1c;
+      --gold:#7a9e7e;--gold2:#a3c9a8;--text:#ceefd4;--text-dim:#4a6650;
+      --text-mid:#8aaa90;--border:rgba(122,158,126,0.12);--border-hi:rgba(122,158,126,0.28);
+      --red:#ff6b6b;--mono:'Space Mono',monospace;--sans:'Space Grotesk',sans-serif;
     }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { width: 100%; height: 100%; background: var(--bg); font-family: var(--sans); color: var(--text); overflow: hidden; }
-    #layout       { display: flex; flex-direction: column; width: 100%; height: 100%; }
-    #toolbar      { display: flex; align-items: center; gap: 5px; padding: 6px 10px; background: var(--surface2); border-bottom: 1px solid var(--border); height: 44px; flex-shrink: 0; }
-    #content-area { flex: 1; position: relative; background: #000; overflow: hidden; }
-    #statusbar    { height: 22px; background: var(--surface2); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px; gap: 10px; flex-shrink: 0; }
-    .tb-btn { width:30px;height:30px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-dim);cursor:pointer;transition:background .12s,color .12s,border-color .12s; }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html,body{width:100%;height:100%;background:var(--bg);font-family:var(--sans);color:var(--text);overflow:hidden;}
+    #layout{display:flex;flex-direction:column;width:100%;height:100%;}
+    #toolbar{display:flex;align-items:center;gap:5px;padding:6px 10px;background:var(--surface2);border-bottom:1px solid var(--border);height:44px;flex-shrink:0;}
+    #content-area{flex:1;position:relative;background:#000;overflow:hidden;}
+    #statusbar{height:22px;background:var(--surface2);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:10px;flex-shrink:0;}
+    .tb-btn{width:30px;height:30px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-dim);cursor:pointer;transition:background .12s,color .12s,border-color .12s;}
     .tb-btn:hover:not(:disabled){background:var(--surface3);color:var(--text);border-color:var(--border-hi);}
     .tb-btn:active:not(:disabled){transform:scale(.93);}
     .tb-btn:disabled{opacity:.3;cursor:not-allowed;}
@@ -43,8 +33,6 @@
     #go-btn{padding:0 14px;height:30px;flex-shrink:0;background:var(--gold);color:#000;border:none;border-radius:6px;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.1em;cursor:pointer;transition:background .12s;}
     #go-btn:hover{background:var(--gold2);}
     #loading-bar{position:absolute;top:0;left:0;height:2px;width:0%;background:linear-gradient(90deg,var(--gold),var(--gold2));transition:width .25s ease;z-index:10;pointer-events:none;box-shadow:0 0 8px rgba(122,158,126,.6);}
-
-    /* NEW TAB */
     #newtab{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:var(--bg);z-index:5;overflow-y:auto;padding:20px 0;}
     #newtab.hidden{display:none;}
     .nt-logo{color:var(--gold);}
@@ -65,8 +53,6 @@
     .nt-link{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-family:var(--mono);font-size:10px;color:var(--text-mid);cursor:pointer;letter-spacing:.08em;transition:background .12s,color .12s,border-color .12s;}
     .nt-link:hover{background:var(--surface3);color:var(--text);border-color:var(--border-hi);}
     .nt-note{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.06em;text-align:center;max-width:440px;line-height:1.8;}
-
-    /* ERROR */
     #err-page{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg);z-index:6;text-align:center;padding:40px;}
     #err-page.show{display:flex;}
     .err-ico{font-size:42px;}
@@ -77,10 +63,7 @@
     .err-btn:hover{background:var(--surface3);color:var(--text);border-color:var(--border-hi);}
     .err-btn.primary{background:var(--gold);color:#000;border-color:var(--gold);}
     .err-btn.primary:hover{background:var(--gold2);}
-
-    /* FRAME */
     #page-frame{position:absolute;inset:0;width:100%;height:100%;border:none;display:none;background:#fff;}
-
     #status-text{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.04em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
     #status-extra{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.04em;flex-shrink:0;}
   </style>
@@ -129,13 +112,11 @@
       </div>
       <div class="nt-engine-row">
         ENGINE:
-        <button class="nt-engine-btn active" id="eng-brave"  onclick="setEngine('brave')">Brave</button>
-        <button class="nt-engine-btn"        id="eng-google" onclick="setEngine('google')">Google</button>
+        <button class="nt-engine-btn active" id="eng-google" onclick="setEngine('google')">Google</button>
         <button class="nt-engine-btn"        id="eng-ddg"    onclick="setEngine('ddg')">DuckDuckGo</button>
       </div>
       <div class="nt-links">
-        <div class="nt-link" onclick="loadUrl('https://inv.nadeko.net')">▶ YouTube (Invidious)</div>
-        <div class="nt-link" onclick="loadUrl('https://search.brave.com')">🔍 Brave Search</div>
+        <div class="nt-link" onclick="loadUrl('https://yewtu.be')">▶ YouTube (Invidious)</div>
         <div class="nt-link" onclick="loadUrl('https://www.reddit.com')">📰 Reddit</div>
         <div class="nt-link" onclick="loadUrl('https://news.ycombinator.com')">⚡ Hacker News</div>
         <div class="nt-link" onclick="loadUrl('https://www.wikipedia.org')">📖 Wikipedia</div>
@@ -147,8 +128,8 @@
         <div class="nt-link" onclick="loadUrl('https://www.instagram.com')">📸 Instagram</div>
       </div>
       <div class="nt-note">
-        ▶ YouTube links are automatically routed to Invidious (open-source YouTube).<br>
-        Type any youtube.com or youtu.be URL and it will work.
+        ▶ YouTube links route to Invidious (yewtu.be).<br>
+        Type any youtube.com URL and it will redirect automatically.
       </div>
     </div>
 
@@ -178,19 +159,14 @@
 <script>
 "use strict";
 
+// Search engines — Brave removed (blocks iframes), Google works best through proxy
 const ENGINES = {
-  ddg:    (q) => "https://duckduckgo.com/?q=" + encodeURIComponent(q) + "&ia=web",
-  brave:  (q) => "https://search.brave.com/search?q=" + encodeURIComponent(q),
   google: (q) => "https://www.google.com/search?q=" + encodeURIComponent(q),
+  ddg:    (q) => "https://duckduckgo.com/?q=" + encodeURIComponent(q) + "&ia=web",
 };
 
-const INV = [
-  "inv.nadeko.net",
-  "invidious.privacyredirect.com",
-  "invidious.nerdvpn.de",
-  "iv.melmac.space",
-  "yewtu.be",
-];
+// Invidious instances — yewtu.be as primary (most reliable)
+const INV = ["yewtu.be","inv.nadeko.net","invidious.privacyredirect.com","iv.melmac.space"];
 let invIdx = 0;
 function invHost(){ return INV[invIdx % INV.length]; }
 
@@ -214,202 +190,179 @@ function rewriteYT(u) {
   } catch { return null; }
 }
 
-let hist    = [];
-let histIdx   = -1;
-let loading   = false;
-let _realUrl  = "";
-let _loadT    = null;
-let _stuckT   = null;
-let currentEngine = "brave";
+let hist=[], histIdx=-1, loading=false, _realUrl="", _loadT=null, _stuckT=null;
+let currentEngine = "google";
 
-const urlBar     = document.getElementById("url-bar");
-const frame      = document.getElementById("page-frame");
-const newtab      = document.getElementById("newtab");
-const ntSearch   = document.getElementById("nt-search");
-const loadBar    = document.getElementById("loading-bar");
-const statusTxt  = document.getElementById("status-text");
-const statusExt  = document.getElementById("status-extra");
-const secureIcon = document.getElementById("secure-icon");
-const btnBack    = document.getElementById("btn-back");
-const btnFwd     = document.getElementById("btn-fwd");
-const btnReload  = document.getElementById("btn-reload");
-const errPage    = document.getElementById("err-page");
-const errTitle   = document.getElementById("err-title");
-const errMsg     = document.getElementById("err-msg");
+const urlBar=document.getElementById("url-bar");
+const frame=document.getElementById("page-frame");
+const newtab=document.getElementById("newtab");
+const ntSearch=document.getElementById("nt-search");
+const loadBar=document.getElementById("loading-bar");
+const statusTxt=document.getElementById("status-text");
+const statusExt=document.getElementById("status-extra");
+const secureIcon=document.getElementById("secure-icon");
+const btnBack=document.getElementById("btn-back");
+const btnFwd=document.getElementById("btn-fwd");
+const btnReload=document.getElementById("btn-reload");
+const errPage=document.getElementById("err-page");
+const errTitle=document.getElementById("err-title");
+const errMsg=document.getElementById("err-msg");
 
 function setEngine(name) {
   currentEngine = name;
-  document.querySelectorAll(".nt-engine-btn").forEach(b => b.classList.remove("active"));
-  const btn = document.getElementById("eng-" + name);
-  if (btn) btn.classList.add("active");
+  document.querySelectorAll(".nt-engine-btn").forEach(b=>b.classList.remove("active"));
+  const btn=document.getElementById("eng-"+name);
+  if(btn) btn.classList.add("active");
 }
 
 function normalise(input) {
-  input = (input || '').trim();
-  if (!input) return null;
-  if (input.startsWith('/fetch?url=')) return input;
-
-  let withProto = /^https?:\/\//i.test(input) ? input : 'https://' + input;
-
-  const yt = rewriteYT(withProto);
-  if (yt) return yt;
-
-  const looksUrl =
-    /^https?:\/\//i.test(input) ||
-    (/\.[a-z]{2,}(\/|$)/i.test(input) && !/\s/.test(input));
-
-  if (looksUrl) {
-    return withProto;
-  }
-
+  input=(input||'').trim();
+  if(!input) return null;
+  if(input.startsWith('/fetch?url=')) return input;
+  let withProto=/^https?:\/\//i.test(input)?input:'https://'+input;
+  const yt=rewriteYT(withProto);
+  if(yt) return yt;
+  const looksUrl=/^https?:\/\//i.test(input)||(/\.[a-z]{2,}(\/|$)/i.test(input)&&!/\s/.test(input));
+  if(looksUrl) return withProto;
   return ENGINES[currentEngine](input);
 }
 
 function updateSecure(u) {
-  if (!u) { secureIcon.textContent = ""; return; }
-  if (u.startsWith("https://")) {
-    secureIcon.textContent = "🔒"; secureIcon.style.color = "#4ade80";
-  } else {
-    secureIcon.textContent = "⚠"; secureIcon.style.color = "#febc2e";
-  }
+  if(!u){secureIcon.textContent="";return;}
+  if(u.startsWith("https://")){secureIcon.textContent="🔒";secureIcon.style.color="#4ade80";}
+  else{secureIcon.textContent="⚠";secureIcon.style.color="#febc2e";}
 }
 
-function updateNavBtns() {
-  btnBack.disabled = histIdx <= 0;
-  btnFwd.disabled  = histIdx >= hist.length - 1;
+function updateNavBtns(){
+  btnBack.disabled=histIdx<=0;
+  btnFwd.disabled=histIdx>=hist.length-1;
 }
 
-function startLoading() {
-  loading = true; clearTimeout(_loadT);
-  loadBar.style.transition = "none"; loadBar.style.width = "0%";
-  requestAnimationFrame(() => { loadBar.style.transition = "width 3s ease-out"; loadBar.style.width = "80%"; });
-  btnReload.style.opacity = "0.5"; statusTxt.textContent = "Loading…";
+function startLoading(){
+  loading=true;clearTimeout(_loadT);
+  loadBar.style.transition="none";loadBar.style.width="0%";
+  requestAnimationFrame(()=>{loadBar.style.transition="width 3s ease-out";loadBar.style.width="80%";});
+  btnReload.style.opacity="0.5";statusTxt.textContent="Loading…";
 }
 
-function stopLoading() {
-  loading = false; clearTimeout(_stuckT);
-  loadBar.style.transition = "width 0.2s ease"; loadBar.style.width = "100%";
-  _loadT = setTimeout(() => { loadBar.style.transition = "none"; loadBar.style.width = "0%"; }, 350);
-  btnReload.style.opacity = "1";
+function stopLoading(){
+  loading=false;clearTimeout(_stuckT);
+  loadBar.style.transition="width 0.2s ease";loadBar.style.width="100%";
+  _loadT=setTimeout(()=>{loadBar.style.transition="none";loadBar.style.width="0%";},350);
+  btnReload.style.opacity="1";
 }
 
-function showError(title, msg) {
-  errTitle.textContent = title; errMsg.textContent = msg;
-  errPage.classList.add("show"); frame.style.display = "none"; stopLoading();
+function showError(title,msg){
+  errTitle.textContent=title;errMsg.textContent=msg;
+  errPage.classList.add("show");frame.style.display="none";stopLoading();
 }
 
-function hideError() { errPage.classList.remove("show"); }
-function openDirect() { if (_realUrl) window.open(_realUrl, "_blank"); }
+function hideError(){errPage.classList.remove("show");}
+function openDirect(){if(_realUrl)window.open(_realUrl,"_blank");}
 
-function loadUrl(rawUrl) {
-  const norm = normalise(rawUrl);
-  if (!norm) return;
+function loadUrl(rawUrl){
+  const norm=normalise(rawUrl);
+  if(!norm) return;
   hideError();
-  _realUrl = norm; urlBar.value = norm; updateSecure(norm);
-  if (histIdx < hist.length - 1) hist.splice(histIdx + 1);
-  hist.push(norm); histIdx = hist.length - 1; updateNavBtns();
-  startLoading(); showFrame(norm);
+  _realUrl=norm;urlBar.value=norm;updateSecure(norm);
+  if(histIdx<hist.length-1) hist.splice(histIdx+1);
+  hist.push(norm);histIdx=hist.length-1;updateNavBtns();
+  startLoading();showFrame(norm);
 }
 
-function showFrame(targetUrl) {
-  newtab.classList.add("hidden"); hideError();
-  statusExt.textContent = targetUrl;
-  frame.style.display = "block";
-  frame.src = "/fetch?url=" + encodeURIComponent(targetUrl);
+function showFrame(targetUrl){
+  newtab.classList.add("hidden");hideError();
+  statusExt.textContent=targetUrl;
+  frame.style.display="block";
+  frame.src="/fetch?url="+encodeURIComponent(targetUrl);
   clearTimeout(_stuckT);
-  _stuckT = setTimeout(() => { if (loading) stopLoading(); }, 30000);
+  _stuckT=setTimeout(()=>{if(loading)stopLoading();},30000);
 }
 
-function navigate() {
-  const v = urlBar.value.trim(); if (v) loadUrl(v);
+function navigate(){const v=urlBar.value.trim();if(v)loadUrl(v);}
+
+function ntNavigate(){
+  const v=ntSearch.value.trim();if(!v)return;
+  ntSearch.value="";loadUrl(v);
 }
 
-function ntNavigate() {
-  const v = ntSearch.value.trim(); if (!v) return;
-  ntSearch.value = ""; loadUrl(v);
+function navBack(){
+  if(histIdx<=0)return;histIdx--;
+  const u=hist[histIdx];
+  _realUrl=u;urlBar.value=u;updateSecure(u);updateNavBtns();
+  hideError();showFrame(u);
 }
 
-function navBack() {
-  if (histIdx <= 0) return; histIdx--;
-  const u = hist[histIdx];
-  _realUrl = u; urlBar.value = u; updateSecure(u); updateNavBtns();
-  hideError(); showFrame(u);
+function navFwd(){
+  if(histIdx>=hist.length-1)return;histIdx++;
+  const u=hist[histIdx];
+  _realUrl=u;urlBar.value=u;updateSecure(u);updateNavBtns();
+  hideError();showFrame(u);
 }
 
-function navFwd() {
-  if (histIdx >= hist.length - 1) return; histIdx++;
-  const u = hist[histIdx];
-  _realUrl = u; urlBar.value = u; updateSecure(u); updateNavBtns();
-  hideError(); showFrame(u);
-}
-
-function navReload() {
+function navReload(){
   hideError();
-  const u = hist[histIdx] || _realUrl; if (u) showFrame(u);
+  const u=hist[histIdx]||_realUrl;if(u)showFrame(u);
 }
 
-function goHome() {
-  hideError(); clearTimeout(_stuckT); stopLoading();
-  frame.style.display = "none"; frame.src = "about:blank";
-  _realUrl = ""; urlBar.value = ""; secureIcon.textContent = "";
+function goHome(){
+  hideError();clearTimeout(_stuckT);stopLoading();
+  frame.style.display="none";frame.src="about:blank";
+  _realUrl="";urlBar.value="";secureIcon.textContent="";
   newtab.classList.remove("hidden");
-  statusTxt.textContent = "Ready"; statusExt.textContent = "";
+  statusTxt.textContent="Ready";statusExt.textContent="";
 }
 
-function clearUrl() { urlBar.value = ""; urlBar.focus(); }
+function clearUrl(){urlBar.value="";urlBar.focus();}
 
-frame.addEventListener("load", () => {
-  stopLoading(); statusTxt.textContent = "Done";
-  try {
-    const body = frame.contentDocument && frame.contentDocument.body;
-    if (!body) return;
-    const text = (body.innerText || "").trim().slice(0, 300);
-    if (text.startsWith("{") && text.includes('"error"')) {
-      try {
-        const parsed = JSON.parse(body.innerText || "{}");
-        if (parsed.error) { showError("PROXY ERROR", parsed.error + "\n\n" + (_realUrl || "")); return; }
-      } catch {}
+frame.addEventListener("load",()=>{
+  stopLoading();statusTxt.textContent="Done";
+  try{
+    const body=frame.contentDocument&&frame.contentDocument.body;
+    if(!body)return;
+    const text=(body.innerText||"").trim().slice(0,300);
+    if(text.startsWith("{")&&text.includes('"error"')){
+      try{
+        const parsed=JSON.parse(body.innerText||"{}");
+        if(parsed.error){showError("PROXY ERROR",parsed.error+"\n\n"+(_realUrl||""));return;}
+      }catch{}
     }
-  } catch {}
+  }catch{}
 });
 
-frame.addEventListener("error", () => {
+frame.addEventListener("error",()=>{
   stopLoading();
-  showError("LOAD ERROR", "Failed to load:\n" + (_realUrl || "unknown"));
+  showError("LOAD ERROR","Failed to load:\n"+(_realUrl||"unknown"));
 });
 
-window.addEventListener("message", (e) => {
-  if (!e.data || typeof e.data !== "object") return;
-
-  // FIX: navigate-proxy should navigate WITHIN this browser, not reopen the OS window
-  if (e.data.type === "mos-navigate-proxy" && e.data.url) {
+// FIX: route link clicks from proxied pages back into THIS browser, not the OS
+window.addEventListener("message",(e)=>{
+  if(!e.data||typeof e.data!=="object")return;
+  if(e.data.type==="mos-navigate-proxy"&&e.data.url){
     loadUrl(e.data.url);
     return;
   }
-
-  if (e.data.type === "mos-url-update" && e.data.url) {
-    const real = e.data.url;
-    if (real && real !== _realUrl && !real.startsWith("about:") && !real.startsWith("/fetch")) {
-      _realUrl = real; urlBar.value = real; updateSecure(real); statusExt.textContent = real;
-      if (histIdx < hist.length - 1) hist.splice(histIdx + 1);
-      hist.push(real); histIdx = hist.length - 1; updateNavBtns();
+  if(e.data.type==="mos-url-update"&&e.data.url){
+    const real=e.data.url;
+    if(real&&real!==_realUrl&&!real.startsWith("about:")&&!real.startsWith("/fetch")){
+      _realUrl=real;urlBar.value=real;updateSecure(real);statusExt.textContent=real;
+      if(histIdx<hist.length-1)hist.splice(histIdx+1);
+      hist.push(real);histIdx=hist.length-1;updateNavBtns();
     }
   }
-
-  // mos-navigate from OS desktop (openBrowser called with a URL)
-  if (e.data.type === "mos-navigate" && e.data.url) loadUrl(e.data.url);
+  if(e.data.type==="mos-navigate"&&e.data.url)loadUrl(e.data.url);
 });
 
-urlBar.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") { e.preventDefault(); navigate(); }
-  if (e.key === "Escape") urlBar.blur();
+urlBar.addEventListener("keydown",(e)=>{
+  if(e.key==="Enter"){e.preventDefault();navigate();}
+  if(e.key==="Escape")urlBar.blur();
 });
-ntSearch.addEventListener("keydown", (e) => { if (e.key === "Enter") ntNavigate(); });
-document.addEventListener("keydown", (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === "l") { e.preventDefault(); urlBar.select(); }
-  if ((e.ctrlKey || e.metaKey) && e.key === "r") { e.preventDefault(); navReload(); }
-  if (e.altKey && e.key === "ArrowLeft")  navBack();
-  if (e.altKey && e.key === "ArrowRight") navFwd();
+ntSearch.addEventListener("keydown",(e)=>{if(e.key==="Enter")ntNavigate();});
+document.addEventListener("keydown",(e)=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==="l"){e.preventDefault();urlBar.select();}
+  if((e.ctrlKey||e.metaKey)&&e.key==="r"){e.preventDefault();navReload();}
+  if(e.altKey&&e.key==="ArrowLeft")navBack();
+  if(e.altKey&&e.key==="ArrowRight")navFwd();
 });
 </script>
 </body>
