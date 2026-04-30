@@ -19,7 +19,7 @@
       --text-mid:  #8aaa90;
       --border:    rgba(122,158,126,0.12);
       --border-hi: rgba(122,158,126,0.28);
-      --red:       #ff6b6b;
+      --red:        #ff6b6b;
       --mono:      'Space Mono', monospace;
       --sans:      'Space Grotesk', sans-serif;
     }
@@ -179,17 +179,12 @@
 <script>
 "use strict";
 
-// ══════════════════════════════════════════════════════
-//  MOS Browser v5
-// ══════════════════════════════════════════════════════
-
 const ENGINES = {
   ddg:    (q) => "https://duckduckgo.com/?q=" + encodeURIComponent(q) + "&ia=web",
   brave:  (q) => "https://search.brave.com/search?q=" + encodeURIComponent(q),
   google: (q) => "https://www.google.com/search?q=" + encodeURIComponent(q),
 };
 
-// Invidious instances — we cycle through them if one fails
 const INV = [
   "inv.nadeko.net",
   "invidious.privacyredirect.com",
@@ -203,7 +198,6 @@ function invHost(){ return INV[invIdx % INV.length]; }
 function rewriteYT(u) {
   try {
     if (!u || (!u.includes("youtube.com") && !u.includes("youtu.be"))) return null;
-    // ensure it has a protocol so URL() works
     if (!/^https?:\/\//i.test(u)) u = "https://" + u;
     const p = new URL(u);
     const h = p.hostname.replace(/^(www\.|m\.)/, "");
@@ -217,13 +211,11 @@ function rewriteYT(u) {
     if (v) return "https://" + inv + "/watch?v=" + v;
     const sq = p.searchParams.get("search_query");
     if (sq) return "https://" + inv + "/search?q=" + encodeURIComponent(sq);
-    // Anything else on YT → Invidious same path
     return "https://" + inv + p.pathname + p.search;
   } catch { return null; }
 }
 
-// State
-const hist    = [];
+let hist    = [];
 let histIdx   = -1;
 let loading   = false;
 let _realUrl  = "";
@@ -231,10 +223,9 @@ let _loadT    = null;
 let _stuckT   = null;
 let currentEngine = "ddg";
 
-// DOM
 const urlBar     = document.getElementById("url-bar");
 const frame      = document.getElementById("page-frame");
-const newtab     = document.getElementById("newtab");
+const newtab      = document.getElementById("newtab");
 const ntSearch   = document.getElementById("nt-search");
 const loadBar    = document.getElementById("loading-bar");
 const statusTxt  = document.getElementById("status-text");
@@ -259,16 +250,15 @@ function normalise(input) {
   if (!input) return null;
   if (input.startsWith('/fetch?url=')) return input;
 
-  // Add protocol if missing so URL parsing works
-  let withProto = /^https?:///i.test(input) ? input : 'https://' + input;
+  let withProto = /^https?:\/\//i.test(input) ? input : 'https://' + input;
 
-  // YouTube rewrite - catches youtube.com, www.youtube.com, youtu.be, m.youtube.com
   const yt = rewriteYT(withProto);
   if (yt) return yt;
 
+  // Fixed the Regex Unterminated Group Error here
   const looksUrl =
-    /^https?:///i.test(input) ||
-    (/.[a-z]{2,}(/|$)/i.test(input) && !/s/.test(input));
+    /^https?:\/\//i.test(input) ||
+    (/\.[a-z]{2,}(\/|$)/i.test(input) && !/\s/.test(input));
 
   if (looksUrl) {
     return withProto;
