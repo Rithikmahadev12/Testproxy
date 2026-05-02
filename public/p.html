@@ -112,8 +112,8 @@
       </div>
       <div class="nt-engine-row">
         ENGINE:
-        <button class="nt-engine-btn active" id="eng-google" onclick="setEngine('google')">Google</button>
-        <button class="nt-engine-btn"        id="eng-ddg"    onclick="setEngine('ddg')">DuckDuckGo</button>
+        <button class="nt-engine-btn active" id="eng-bing" onclick="setEngine('bing')">Bing</button>
+        <button class="nt-engine-btn"        id="eng-ddg"  onclick="setEngine('ddg')">DuckDuckGo</button>
       </div>
       <div class="nt-links">
         <div class="nt-link" onclick="loadUrl('https://yewtu.be')">▶ YouTube (Invidious)</div>
@@ -159,10 +159,10 @@
 <script>
 "use strict";
 
-// Search engines — Brave removed (blocks iframes), Google works best through proxy
+// Search engines — Bing as primary
 const ENGINES = {
-  google: (q) => "https://www.google.com/search?q=" + encodeURIComponent(q),
-  ddg:    (q) => "https://duckduckgo.com/?q=" + encodeURIComponent(q) + "&ia=web",
+  bing: (q) => "https://www.bing.com/search?q=" + encodeURIComponent(q),
+  ddg:  (q) => "https://duckduckgo.com/?q=" + encodeURIComponent(q) + "&ia=web",
 };
 
 // Invidious instances — yewtu.be as primary (most reliable)
@@ -191,7 +191,7 @@ function rewriteYT(u) {
 }
 
 let hist=[], histIdx=-1, loading=false, _realUrl="", _loadT=null, _stuckT=null;
-let currentEngine = "google";
+let currentEngine = "bing";
 
 const urlBar=document.getElementById("url-bar");
 const frame=document.getElementById("page-frame");
@@ -335,7 +335,6 @@ frame.addEventListener("error",()=>{
   showError("LOAD ERROR","Failed to load:\n"+(_realUrl||"unknown"));
 });
 
-// FIX: route link clicks from proxied pages back into THIS browser, not the OS
 window.addEventListener("message",(e)=>{
   if(!e.data||typeof e.data!=="object")return;
   if(e.data.type==="mos-navigate-proxy"&&e.data.url){
