@@ -1,17 +1,15 @@
 "use strict";
 
 // ══════════════════════════════════════
-//  MATRIARCHS OS — blocklist.js  v3
+//  MATRIARCHS OS — blocklist.js  v4
 // ══════════════════════════════════════
 
-// ── Patterns that are always blocked ─────────────────────────────────────────
 const BLOCKED = [
   /malware/i,
   /phish/i,
   /ransomware/i,
 ];
 
-// ── Response headers to nuke (anti-framing / security headers) ────────────────
 const STRIP_RES = new Set([
   "x-frame-options",
   "content-security-policy",
@@ -32,26 +30,14 @@ const STRIP_RES = new Set([
   "x-permitted-cross-domain-policies",
   "x-xss-protection",
   "origin-agent-cluster",
+  "timing-allow-origin",
 ]);
 
-// ── Request headers to strip (reveal proxy identity) ─────────────────────────
 const STRIP_REQ = new Set([
-  "host",
-  "origin",
-  "referer",
-  "x-forwarded-for",
-  "x-forwarded-host",
-  "x-forwarded-proto",
-  "x-real-ip",
-  "cf-connecting-ip",
-  "cf-ipcountry",
-  "cf-ray",
-  "cf-visitor",
-  "via",
-  "forwarded",
-  "x-cluster-client-ip",
-  "x-client-ip",
-  "true-client-ip",
+  "host", "origin", "referer",
+  "x-forwarded-for", "x-forwarded-host", "x-forwarded-proto",
+  "x-real-ip", "cf-connecting-ip", "cf-ipcountry", "cf-ray", "cf-visitor",
+  "via", "forwarded", "x-cluster-client-ip", "x-client-ip", "true-client-ip",
 ]);
 
 function isBlocked(host) {
@@ -70,29 +56,25 @@ function cleanResponseHeaders(headers) {
 }
 
 function buildRequestHeaders(incoming = {}, overrides = {}) {
-  // Start from a clean object — drop all proxy-revealing headers
   const base = {};
   for (const [k, v] of Object.entries(incoming)) {
     if (!STRIP_REQ.has(k.toLowerCase())) {
       base[k.toLowerCase()] = v;
     }
   }
-
   return {
     ...base,
-    // Mandatory browser spoofs
-    "user-agent":         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "accept-language":    "en-US,en;q=0.9",
-    "accept-encoding":    "gzip, deflate, br",
-    "sec-fetch-mode":     "navigate",
-    "sec-fetch-dest":     "document",
-    "sec-fetch-site":     "same-origin",
-    "sec-fetch-user":     "?1",
-    "sec-ch-ua":          '"Chromium";v="124","Google Chrome";v="124","Not-A.Brand";v="99"',
-    "sec-ch-ua-mobile":   "?0",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "accept-language": "en-US,en;q=0.9",
+    "accept-encoding": "gzip, deflate, br",
+    "sec-fetch-mode": "navigate",
+    "sec-fetch-dest": "document",
+    "sec-fetch-site": "same-origin",
+    "sec-fetch-user": "?1",
+    "sec-ch-ua": '"Chromium";v="124","Google Chrome";v="124","Not-A.Brand";v="99"',
+    "sec-ch-ua-mobile": "?0",
     "sec-ch-ua-platform": '"Windows"',
-    "dnt":                "1",
-    // Caller overrides always win
+    "dnt": "1",
     ...overrides,
   };
 }
