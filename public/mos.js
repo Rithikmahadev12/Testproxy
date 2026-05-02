@@ -10,10 +10,6 @@ const OWNER_PASSWORD = "messi2be";
 const USERS_KEY      = "mos_users";
 const SESSION_KEY    = "mos_session";
 
-// ─── TMDB API Key ─────────────────────────────────────────────────────────────
-// Get your FREE key at: https://www.themoviedb.org/settings/api
-const TMDB_KEY = "";
-
 // ── Clock ─────────────────────────────────────────────────────────────────────
 function updateClock() {
   const now  = new Date();
@@ -696,35 +692,29 @@ function adminDelete(u) { if(!confirm(`Delete "${u}"?`))return;saveUsers(getUser
 
 // ══════════════════════════════════════
 //  CINEMA
+//  Uses Cinemeta (Stremio) — NO API KEY required.
+//  Returns IMDB IDs accepted by all video providers.
 // ══════════════════════════════════════
+
 const PROVIDERS = [
-  { id:"vidsrcsu", name:"VidSrc.SU",   urls:{ movie:"https://vidsrc.su/embed/movie/{id}",              tv:"https://vidsrc.su/embed/tv/{id}/{season}/{episode}" }},
-  { id:"vidsrccx", name:"VidSrc.CX",   urls:{ movie:"https://vidsrc.cx/embed/movie/{id}",              tv:"https://vidsrc.cx/embed/tv/{id}/{season}/{episode}" }},
-  { id:"vidlink",  name:"VidLink",     urls:{ movie:"https://vidlink.pro/movie/{id}",                   tv:"https://vidlink.pro/tv/{id}/{season}/{episode}" }},
-  { id:"rive",     name:"RiveStream",  urls:{ movie:"https://rivestream.org/embed?type=movie&id={id}", tv:"https://rivestream.org/embed?type=tv&id={id}&season={season}&episode={episode}" }},
-  { id:"mapple",   name:"MappleTv",    urls:{ movie:"https://mappletv.uk/watch/movie/{id}",             tv:"https://mappletv.uk/watch/tv/{id}-{season}-{episode}" }},
-  { id:"frembed",  name:"Frembed(FR)", urls:{ movie:"https://frembed.icu/api/film.php?id={id}",         tv:"https://frembed.icu/api/serie.php?id={id}&sa={season}&epi={episode}" }},
+  { id:"vidsrcsu", name:"VidSrc.SU",  urls:{ movie:"https://vidsrc.su/embed/movie/{id}",              tv:"https://vidsrc.su/embed/tv/{id}/{season}/{episode}" }},
+  { id:"vidsrccx", name:"VidSrc.CX",  urls:{ movie:"https://vidsrc.cx/embed/movie/{id}",              tv:"https://vidsrc.cx/embed/tv/{id}/{season}/{episode}" }},
+  { id:"vidlink",  name:"VidLink",    urls:{ movie:"https://vidlink.pro/movie/{id}",                   tv:"https://vidlink.pro/tv/{id}/{season}/{episode}" }},
+  { id:"rive",     name:"RiveStream", urls:{ movie:"https://rivestream.org/embed?type=movie&id={id}", tv:"https://rivestream.org/embed?type=tv&id={id}&season={season}&episode={episode}" }},
+  { id:"mapple",   name:"MappleTv",   urls:{ movie:"https://mappletv.uk/watch/movie/{id}",             tv:"https://mappletv.uk/watch/tv/{id}-{season}-{episode}" }},
+  { id:"nontongo", name:"NontonGo",   urls:{ movie:"https://www.NontonGo.online/embed/movie/{id}",    tv:"https://www.NontonGo.online/embed/tv/{id}/{season}/{episode}" }},
+  { id:"frembed",  name:"Frembed",    urls:{ movie:"https://frembed.icu/api/film.php?id={id}",         tv:"https://frembed.icu/api/serie.php?id={id}&sa={season}&epi={episode}" }},
 ];
 
-// ── Cinema state ───────────────────────────────────────────────────────────────
+// Cinemeta base — Stremio's free catalogue, no key required
+const CINEMETA_BASE = "https://v3-cinemeta.strem.io/catalog";
+
 let _cinemaType = "movie";
 
+// ── Open the search window ────────────────────────────────────────────────────
 function openCinemaSearch() {
   const existing = document.getElementById("win-cinema");
   if (existing) { existing.classList.remove("minimized"); bringToFront("win-cinema"); return; }
-
-  const noKeyMsg = !TMDB_KEY ? `
-    <div style="grid-column:1/-1;text-align:center;padding:36px 24px;font-family:var(--mono);font-size:11px;color:var(--text-dim);background:var(--surface2);border-radius:8px;border:1px solid var(--border);line-height:2.4;margin:4px;">
-      <div style="font-size:30px;margin-bottom:10px;">🔑</div>
-      <div style="color:var(--gold);font-weight:700;letter-spacing:0.12em;margin-bottom:10px;">TMDB API KEY REQUIRED</div>
-      Open <code style="color:var(--gold2)">public/mos.js</code> and set:<br>
-      <code style="color:var(--text-mid);background:var(--surface3);padding:2px 8px;border-radius:4px;">const TMDB_KEY = "your_key_here";</code><br><br>
-      Get a <strong style="color:var(--gold2)">free</strong> key at:<br>
-      <span style="color:var(--gold)">themoviedb.org/settings/api</span>
-    </div>` : `
-    <div style="grid-column:1/-1;text-align:center;padding:60px 20px;font-family:var(--mono);font-size:11px;color:var(--text-dim);">
-      Search for a movie or TV show above.
-    </div>`;
 
   const win = document.createElement("div");
   win.className = "window"; win.id = "win-cinema";
@@ -752,7 +742,10 @@ function openCinemaSearch() {
       </div>
       <div id="cinema-results"
         style="flex:1;overflow-y:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;align-content:start;">
-        ${noKeyMsg}
+        <div style="grid-column:1/-1;text-align:center;padding:60px 20px;font-family:var(--mono);font-size:11px;color:var(--text-dim);">
+          Search for a movie or TV show above.<br>
+          <span style="color:var(--text-dim);font-size:9px;letter-spacing:0.08em;opacity:0.6;">Powered by Cinemeta — no API key needed</span>
+        </div>
       </div>
     </div>`;
 
@@ -760,27 +753,26 @@ function openCinemaSearch() {
   makeDraggable(win); bringToFront("win-cinema");
   openWindows["win-cinema"] = { title:"Cinema", iconId:"search" };
   refreshTaskbar();
+
+  setTimeout(() => win.querySelector("#cinema-q")?.focus(), 100);
 }
 
+// ── Toggle movie / tv buttons ─────────────────────────────────────────────────
 function setCinemaType(type) {
   _cinemaType = type;
   const mb = document.getElementById("ctype-movie");
   const tb = document.getElementById("ctype-tv");
   if (!mb || !tb) return;
-  const activeStyle  = "background:var(--gold);color:#000;border:none;border-radius:5px;padding:8px 14px;font-family:var(--mono);font-size:10px;font-weight:700;cursor:pointer;letter-spacing:0.08em;flex-shrink:0;";
-  const inactiveStyle = "background:var(--surface3);color:var(--text-dim);border:1px solid var(--border);border-radius:5px;padding:8px 14px;font-family:var(--mono);font-size:10px;cursor:pointer;letter-spacing:0.08em;flex-shrink:0;";
-  if (type === "movie") { mb.style.cssText = activeStyle; tb.style.cssText = inactiveStyle; }
-  else                  { tb.style.cssText = activeStyle; mb.style.cssText = inactiveStyle; }
+  const ON  = "background:var(--gold);color:#000;border:none;border-radius:5px;padding:8px 14px;font-family:var(--mono);font-size:10px;font-weight:700;cursor:pointer;letter-spacing:0.08em;flex-shrink:0;";
+  const OFF = "background:var(--surface3);color:var(--text-dim);border:1px solid var(--border);border-radius:5px;padding:8px 14px;font-family:var(--mono);font-size:10px;cursor:pointer;letter-spacing:0.08em;flex-shrink:0;";
+  mb.style.cssText = type === "movie" ? ON : OFF;
+  tb.style.cssText = type === "tv"    ? ON : OFF;
 }
 
+// ── Search using Cinemeta ─────────────────────────────────────────────────────
 async function doCinemaSearch() {
   const resultsEl = document.getElementById("cinema-results");
   if (!resultsEl) return;
-
-  if (!TMDB_KEY) {
-    resultsEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:36px;font-family:var(--mono);font-size:11px;color:#ff6b6b;">Add your TMDB_KEY to mos.js first.</div>`;
-    return;
-  }
 
   const q = (document.getElementById("cinema-q")?.value || "").trim();
   if (!q) return;
@@ -788,38 +780,48 @@ async function doCinemaSearch() {
   resultsEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;font-family:var(--mono);font-size:11px;color:var(--text-dim);">Searching…</div>`;
 
   try {
-    const apiUrl = `https://api.themoviedb.org/3/search/${_cinemaType}?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&include_adult=false&page=1&language=en-US`;
-    const resp = await fetch(`/fetch?url=${encodeURIComponent(apiUrl)}`);
+    // Cinemeta endpoint:
+    //   movie: /catalog/movie/top/search=QUERY.json
+    //   tv:    /catalog/series/top/search=QUERY.json
+    const catalogType = _cinemaType === "tv" ? "series" : "movie";
+    const endpoint = `${CINEMETA_BASE}/${catalogType}/top/search=${encodeURIComponent(q)}.json`;
+
+    // Route through our own proxy to avoid CORS
+    const resp = await fetch(`/fetch?url=${encodeURIComponent(endpoint)}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
     const text = await resp.text();
     let data;
-    try { data = JSON.parse(text); } catch { throw new Error("Invalid API response — check your TMDB_KEY"); }
+    try { data = JSON.parse(text); } catch { throw new Error("Could not parse response"); }
 
-    if (data.status_message) throw new Error(data.status_message);
-    if (!data.results?.length) {
+    if (!data.metas || !data.metas.length) {
       resultsEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;font-family:var(--mono);font-size:11px;color:var(--text-dim);">No results for &ldquo;${escHtml(q)}&rdquo;</div>`;
       return;
     }
 
-    resultsEl.innerHTML = data.results.slice(0, 24).map(item => {
-      const title  = escHtml(item.title || item.name || "Unknown");
-      const year   = (item.release_date || item.first_air_date || "").slice(0, 4) || "—";
-      const rating = item.vote_average ? item.vote_average.toFixed(1) : "";
-      const poster = item.poster_path
-        ? `/fetch?url=${encodeURIComponent("https://image.tmdb.org/t/p/w185" + item.poster_path)}`
+    resultsEl.innerHTML = data.metas.slice(0, 30).map(item => {
+      const title  = escHtml(item.name || "Unknown");
+      const year   = item.year ? escHtml(String(item.year)) : "—";
+      const rating = item.imdbRating ? "★ " + item.imdbRating : "";
+      const poster = item.poster
+        ? `/fetch?url=${encodeURIComponent(item.poster)}`
         : "";
+      // item.id is an IMDB ID like "tt1234567"
+      const imdbId = escHtml(item.id || "");
+
       return `
-        <div onclick="openCinemaFromSearch(${item.id},'${_cinemaType}')"
+        <div onclick="openCinemaFromSearch('${imdbId}','${_cinemaType}')"
           style="cursor:pointer;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--surface2);transition:all 0.15s;"
           onmouseover="this.style.transform='translateY(-3px)';this.style.borderColor='var(--border-hi)';"
           onmouseout="this.style.transform='';this.style.borderColor='var(--border)';">
           ${poster
             ? `<img src="${poster}" alt="${title}" style="width:100%;aspect-ratio:2/3;object-fit:cover;display:block;" loading="lazy"/>`
-            : `<div style="width:100%;aspect-ratio:2/3;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:40px;">🎬</div>`}
+            : `<div style="width:100%;aspect-ratio:2/3;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:36px;">🎬</div>`}
           <div style="padding:7px 8px;">
             <div style="font-family:var(--mono);font-size:10px;color:var(--text);letter-spacing:0.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${title}">${title}</div>
             <div style="display:flex;justify-content:space-between;margin-top:3px;align-items:center;">
               <span style="font-family:var(--mono);font-size:9px;color:var(--text-dim);">${year}</span>
-              ${rating ? `<span style="font-family:var(--mono);font-size:9px;color:var(--gold);">★ ${rating}</span>` : ""}
+              ${rating ? `<span style="font-family:var(--mono);font-size:9px;color:var(--gold);">${escHtml(rating)}</span>` : ""}
             </div>
           </div>
         </div>`;
@@ -830,18 +832,20 @@ async function doCinemaSearch() {
   }
 }
 
-function openCinemaFromSearch(tmdbId, type) {
+// ── Clicked a search result ───────────────────────────────────────────────────
+function openCinemaFromSearch(imdbId, type) {
   if (type === "tv") {
-    const s  = prompt("Season:", "1");  if (!s) return;
+    const s  = prompt("Season:",  "1"); if (!s) return;
     const ep = prompt("Episode:", "1"); if (!ep) return;
-    openCinemaPlayer(String(tmdbId), type, s, ep);
+    openCinemaPlayer(imdbId, type, s, ep);
   } else {
-    openCinemaPlayer(String(tmdbId), type, "1", "1");
+    openCinemaPlayer(imdbId, type, "1", "1");
   }
 }
 
-function openCinemaPlayer(tmdbId, type, season, episode) {
-  const winId = "win-cinema-player";
+// ── Player window ─────────────────────────────────────────────────────────────
+function openCinemaPlayer(mediaId, type, season, episode) {
+  const winId   = "win-cinema-player";
   const existing = document.getElementById(winId);
   if (existing) existing.remove();
 
@@ -849,7 +853,9 @@ function openCinemaPlayer(tmdbId, type, season, episode) {
     `<option value="${p.id}">${p.name.toUpperCase()}</option>`
   ).join("");
 
-  const label = type === "tv" ? `ID:${tmdbId} // S${season}:E${episode}` : `ID:${tmdbId}`;
+  const label = type === "tv"
+    ? `${mediaId} // S${season}:E${episode}`
+    : mediaId;
 
   const win = document.createElement("div");
   win.className = "window"; win.id = winId;
@@ -869,10 +875,9 @@ function openCinemaPlayer(tmdbId, type, season, episode) {
           style="background:var(--surface3);color:var(--gold2);border:1px solid var(--border-hi);border-radius:5px;font-family:var(--mono);font-size:11px;padding:4px 10px;outline:none;cursor:pointer;">
           ${optionsHtml}
         </select>
-        <span style="font-family:var(--mono);font-size:10px;color:var(--text-mid);text-transform:uppercase;flex:1;">${label}</span>
-        ${type === "tv" ? `
-        <button onclick="cinemaChangeEp()" style="background:var(--surface3);border:1px solid var(--border);border-radius:5px;color:var(--text-mid);font-family:var(--mono);font-size:10px;padding:4px 10px;cursor:pointer;letter-spacing:0.06em;">S/E ▸</button>
-        ` : ""}
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text-mid);text-transform:uppercase;flex:1;">${escHtml(label)}</span>
+        ${type === "tv" ? `<button onclick="cinemaChangeEp()"
+          style="background:var(--surface3);border:1px solid var(--border);border-radius:5px;color:var(--text-mid);font-family:var(--mono);font-size:10px;padding:4px 10px;cursor:pointer;letter-spacing:0.06em;">S/E ▸</button>` : ""}
       </div>
       <iframe id="cinema-frame" style="flex:1;border:none;width:100%;background:#000;"
         allowfullscreen src="about:blank"
@@ -887,31 +892,29 @@ function openCinemaPlayer(tmdbId, type, season, episode) {
   const select = win.querySelector("#provider-select");
   const iframe = win.querySelector("#cinema-frame");
 
-  // Store for S/E change
-  win._cinemaState = { tmdbId, type, season, episode };
+  win._cinemaState = { mediaId, type, season, episode };
 
   function buildUrl(pId) {
     const p = PROVIDERS.find(x => x.id === pId); if (!p) return null;
     return (type === "tv" ? p.urls.tv : p.urls.movie)
-      .replace("{id}", tmdbId)
-      .replace("{season}", win._cinemaState.season)
+      .replace("{id}",      win._cinemaState.mediaId)
+      .replace("{season}",  win._cinemaState.season)
       .replace("{episode}", win._cinemaState.episode);
   }
 
   function loadStream(pId) {
-    const url = buildUrl(pId);
-    if (!url) return;
-    // Route through proxy — strips CSP, X-Frame-Options, loads in iframe
-    iframe.src = `/fetch?url=${encodeURIComponent(url)}`;
+    const url = buildUrl(pId); if (!url) return;
+    // Direct iframe load — providers accept IMDB IDs and don't need our proxy
+    iframe.src = url;
   }
 
   select.onchange = (e) => loadStream(e.target.value);
   loadStream(PROVIDERS[0].id);
 
   win.cinemaChangeEp = function() {
-    const s  = prompt("Season:", win._cinemaState.season);  if (!s) return;
+    const s  = prompt("Season:",  win._cinemaState.season);  if (!s) return;
     const ep = prompt("Episode:", win._cinemaState.episode); if (!ep) return;
-    win._cinemaState.season = s;
+    win._cinemaState.season  = s;
     win._cinemaState.episode = ep;
     loadStream(select.value);
   };
