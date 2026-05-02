@@ -10,6 +10,10 @@ const OWNER_PASSWORD = "messi2be";
 const USERS_KEY      = "mos_users";
 const SESSION_KEY    = "mos_session";
 
+// ─── TMDB API Key ─────────────────────────────────────────────────────────────
+// Get your FREE key at: https://www.themoviedb.org/settings/api
+const TMDB_KEY = "";
+
 // ── Clock ─────────────────────────────────────────────────────────────────────
 function updateClock() {
   const now  = new Date();
@@ -34,7 +38,6 @@ function escHtml(s)    { return String(s||"").replace(/&/g,"&amp;").replace(/</g
 
 // ══════════════════════════════════════
 //  WINDOW MANAGEMENT
-//  (createWindow is here — before Cinema which calls it)
 // ══════════════════════════════════════
 let zTop = 10;
 const openWindows = {};
@@ -104,7 +107,6 @@ function makeDraggable(win) {
   win.addEventListener("mousedown", () => bringToFront(win.id));
 }
 
-// ── createWindow — generic window factory used by Cinema & others ─────────────
 function createWindow(title, content) {
   const id  = "win-" + title.toLowerCase().replace(/[^a-z0-9]/g, "-") + "-" + Date.now();
   const win = document.createElement("div");
@@ -704,55 +706,138 @@ const PROVIDERS = [
   { id:"frembed",  name:"Frembed(FR)", urls:{ movie:"https://frembed.icu/api/film.php?id={id}",         tv:"https://frembed.icu/api/serie.php?id={id}&sa={season}&epi={episode}" }},
 ];
 
+// ── Cinema state ───────────────────────────────────────────────────────────────
+let _cinemaType = "movie";
+
 function openCinemaSearch() {
-  const content = `
-    <div style="padding:24px;color:var(--text);font-family:var(--sans);display:flex;flex-direction:column;gap:18px;">
-      <div>
-        <div style="font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:1px;margin-bottom:8px;">TARGET_ID (TMDB)</div>
-        <input id="cinema-id-input" type="text" placeholder="e.g. 157336"
-          style="width:100%;background:var(--surface3);border:1px solid var(--border-hi);color:var(--text);padding:11px 14px;border-radius:7px;font-family:var(--mono);font-size:13px;outline:none;user-select:text;"/>
-      </div>
-      <div style="display:flex;gap:24px;font-size:13px;font-family:var(--mono);">
-        <label style="cursor:pointer;display:flex;align-items:center;gap:7px;"><input type="radio" name="ctype" value="movie" checked style="accent-color:var(--gold)"/> MOVIE</label>
-        <label style="cursor:pointer;display:flex;align-items:center;gap:7px;"><input type="radio" name="ctype" value="tv"    style="accent-color:var(--gold)"/> TV_SERIES</label>
-      </div>
-      <div id="tv-extras" style="display:none;gap:12px;flex-direction:row;">
-        <div style="flex:1;">
-          <div style="font-family:var(--mono);font-size:9px;color:var(--text-mid);margin-bottom:5px;">SEASON</div>
-          <input id="cinema-s" type="number" value="1" style="width:100%;background:var(--surface3);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:6px;font-family:var(--mono);font-size:14px;outline:none;text-align:center;"/>
-        </div>
-        <div style="flex:1;">
-          <div style="font-family:var(--mono);font-size:9px;color:var(--text-mid);margin-bottom:5px;">EPISODE</div>
-          <input id="cinema-e" type="number" value="1" style="width:100%;background:var(--surface3);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:6px;font-family:var(--mono);font-size:14px;outline:none;text-align:center;"/>
-        </div>
-      </div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);line-height:1.9;">Find TMDB IDs at themoviedb.org — search your movie/show, the ID is in the URL.</div>
-      <button id="cinema-launch-btn" style="width:100%;background:var(--gold);color:#000;border:none;border-radius:7px;padding:13px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.14em;cursor:pointer;transition:background .15s;">
-        ▶ INITIALIZE_STREAM
-      </button>
+  const existing = document.getElementById("win-cinema");
+  if (existing) { existing.classList.remove("minimized"); bringToFront("win-cinema"); return; }
+
+  const noKeyMsg = !TMDB_KEY ? `
+    <div style="grid-column:1/-1;text-align:center;padding:36px 24px;font-family:var(--mono);font-size:11px;color:var(--text-dim);background:var(--surface2);border-radius:8px;border:1px solid var(--border);line-height:2.4;margin:4px;">
+      <div style="font-size:30px;margin-bottom:10px;">🔑</div>
+      <div style="color:var(--gold);font-weight:700;letter-spacing:0.12em;margin-bottom:10px;">TMDB API KEY REQUIRED</div>
+      Open <code style="color:var(--gold2)">public/mos.js</code> and set:<br>
+      <code style="color:var(--text-mid);background:var(--surface3);padding:2px 8px;border-radius:4px;">const TMDB_KEY = "your_key_here";</code><br><br>
+      Get a <strong style="color:var(--gold2)">free</strong> key at:<br>
+      <span style="color:var(--gold)">themoviedb.org/settings/api</span>
+    </div>` : `
+    <div style="grid-column:1/-1;text-align:center;padding:60px 20px;font-family:var(--mono);font-size:11px;color:var(--text-dim);">
+      Search for a movie or TV show above.
     </div>`;
 
-  const win = createWindow("CINEMA_INIT", content);
+  const win = document.createElement("div");
+  win.className = "window"; win.id = "win-cinema";
+  win.style.cssText = "top:60px;left:140px;width:720px;height:540px";
+  win.innerHTML = `
+    <div class="window-titlebar">
+      <div class="window-controls">
+        <button class="wbtn close" onclick="closeWindow('win-cinema')"></button>
+        <button class="wbtn min"   onclick="minimizeWindow('win-cinema')"></button>
+        <button class="wbtn max"   onclick="maximizeWindow('win-cinema')"></button>
+      </div>
+      <span class="window-title">🎬 CINEMA</span>
+    </div>
+    <div class="window-body" style="flex-direction:column;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0;">
+        <input id="cinema-q" type="text" placeholder="Search movies & TV shows…"
+          style="flex:1;background:var(--surface3);border:1px solid var(--border-hi);color:var(--text);padding:9px 13px;border-radius:6px;font-family:var(--mono);font-size:12px;outline:none;user-select:text;"
+          onkeydown="if(event.key==='Enter')doCinemaSearch()"/>
+        <button id="ctype-movie" onclick="setCinemaType('movie')"
+          style="background:var(--gold);color:#000;border:none;border-radius:5px;padding:8px 14px;font-family:var(--mono);font-size:10px;font-weight:700;cursor:pointer;letter-spacing:0.08em;flex-shrink:0;">MOVIE</button>
+        <button id="ctype-tv" onclick="setCinemaType('tv')"
+          style="background:var(--surface3);color:var(--text-dim);border:1px solid var(--border);border-radius:5px;padding:8px 14px;font-family:var(--mono);font-size:10px;cursor:pointer;letter-spacing:0.08em;flex-shrink:0;">TV</button>
+        <button onclick="doCinemaSearch()"
+          style="background:var(--gold);color:#000;border:none;border-radius:6px;padding:9px 20px;font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.1em;flex-shrink:0;">▶ SEARCH</button>
+      </div>
+      <div id="cinema-results"
+        style="flex:1;overflow-y:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;align-content:start;">
+        ${noKeyMsg}
+      </div>
+    </div>`;
 
-  win.querySelectorAll('input[name="ctype"]').forEach(r => {
-    r.addEventListener("change", (e) => {
-      win.querySelector("#tv-extras").style.display = e.target.value === "tv" ? "flex" : "none";
-    });
-  });
+  document.getElementById("windows").appendChild(win);
+  makeDraggable(win); bringToFront("win-cinema");
+  openWindows["win-cinema"] = { title:"Cinema", iconId:"search" };
+  refreshTaskbar();
+}
 
-  win.querySelector("#cinema-launch-btn").onclick = () => {
-    const id   = win.querySelector("#cinema-id-input").value.trim();
-    const type = win.querySelector('input[name="ctype"]:checked').value;
-    const s    = win.querySelector("#cinema-s").value  || "1";
-    const ep   = win.querySelector("#cinema-e").value  || "1";
-    if (!id) { alert("ACCESS_DENIED: TMDB_ID REQUIRED"); return; }
-    closeWindow(win.id);
-    openCinemaPlayer(id, type, s, ep);
-  };
+function setCinemaType(type) {
+  _cinemaType = type;
+  const mb = document.getElementById("ctype-movie");
+  const tb = document.getElementById("ctype-tv");
+  if (!mb || !tb) return;
+  const activeStyle  = "background:var(--gold);color:#000;border:none;border-radius:5px;padding:8px 14px;font-family:var(--mono);font-size:10px;font-weight:700;cursor:pointer;letter-spacing:0.08em;flex-shrink:0;";
+  const inactiveStyle = "background:var(--surface3);color:var(--text-dim);border:1px solid var(--border);border-radius:5px;padding:8px 14px;font-family:var(--mono);font-size:10px;cursor:pointer;letter-spacing:0.08em;flex-shrink:0;";
+  if (type === "movie") { mb.style.cssText = activeStyle; tb.style.cssText = inactiveStyle; }
+  else                  { tb.style.cssText = activeStyle; mb.style.cssText = inactiveStyle; }
+}
 
-  win.querySelector("#cinema-id-input").addEventListener("keydown", e => {
-    if (e.key === "Enter") win.querySelector("#cinema-launch-btn").click();
-  });
+async function doCinemaSearch() {
+  const resultsEl = document.getElementById("cinema-results");
+  if (!resultsEl) return;
+
+  if (!TMDB_KEY) {
+    resultsEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:36px;font-family:var(--mono);font-size:11px;color:#ff6b6b;">Add your TMDB_KEY to mos.js first.</div>`;
+    return;
+  }
+
+  const q = (document.getElementById("cinema-q")?.value || "").trim();
+  if (!q) return;
+
+  resultsEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;font-family:var(--mono);font-size:11px;color:var(--text-dim);">Searching…</div>`;
+
+  try {
+    const apiUrl = `https://api.themoviedb.org/3/search/${_cinemaType}?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&include_adult=false&page=1&language=en-US`;
+    const resp = await fetch(`/fetch?url=${encodeURIComponent(apiUrl)}`);
+    const text = await resp.text();
+    let data;
+    try { data = JSON.parse(text); } catch { throw new Error("Invalid API response — check your TMDB_KEY"); }
+
+    if (data.status_message) throw new Error(data.status_message);
+    if (!data.results?.length) {
+      resultsEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;font-family:var(--mono);font-size:11px;color:var(--text-dim);">No results for &ldquo;${escHtml(q)}&rdquo;</div>`;
+      return;
+    }
+
+    resultsEl.innerHTML = data.results.slice(0, 24).map(item => {
+      const title  = escHtml(item.title || item.name || "Unknown");
+      const year   = (item.release_date || item.first_air_date || "").slice(0, 4) || "—";
+      const rating = item.vote_average ? item.vote_average.toFixed(1) : "";
+      const poster = item.poster_path
+        ? `/fetch?url=${encodeURIComponent("https://image.tmdb.org/t/p/w185" + item.poster_path)}`
+        : "";
+      return `
+        <div onclick="openCinemaFromSearch(${item.id},'${_cinemaType}')"
+          style="cursor:pointer;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--surface2);transition:all 0.15s;"
+          onmouseover="this.style.transform='translateY(-3px)';this.style.borderColor='var(--border-hi)';"
+          onmouseout="this.style.transform='';this.style.borderColor='var(--border)';">
+          ${poster
+            ? `<img src="${poster}" alt="${title}" style="width:100%;aspect-ratio:2/3;object-fit:cover;display:block;" loading="lazy"/>`
+            : `<div style="width:100%;aspect-ratio:2/3;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:40px;">🎬</div>`}
+          <div style="padding:7px 8px;">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--text);letter-spacing:0.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${title}">${title}</div>
+            <div style="display:flex;justify-content:space-between;margin-top:3px;align-items:center;">
+              <span style="font-family:var(--mono);font-size:9px;color:var(--text-dim);">${year}</span>
+              ${rating ? `<span style="font-family:var(--mono);font-size:9px;color:var(--gold);">★ ${rating}</span>` : ""}
+            </div>
+          </div>
+        </div>`;
+    }).join("");
+
+  } catch (err) {
+    resultsEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;font-family:var(--mono);font-size:11px;color:#ff6b6b;">Error: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function openCinemaFromSearch(tmdbId, type) {
+  if (type === "tv") {
+    const s  = prompt("Season:", "1");  if (!s) return;
+    const ep = prompt("Episode:", "1"); if (!ep) return;
+    openCinemaPlayer(String(tmdbId), type, s, ep);
+  } else {
+    openCinemaPlayer(String(tmdbId), type, "1", "1");
+  }
 }
 
 function openCinemaPlayer(tmdbId, type, season, episode) {
@@ -766,39 +851,76 @@ function openCinemaPlayer(tmdbId, type, season, episode) {
 
   const label = type === "tv" ? `ID:${tmdbId} // S${season}:E${episode}` : `ID:${tmdbId}`;
 
-  const content = `
-    <div style="display:flex;flex-direction:column;height:100%;">
+  const win = document.createElement("div");
+  win.className = "window"; win.id = winId;
+  win.style.cssText = "top:40px;left:80px;width:860px;height:580px";
+  win.innerHTML = `
+    <div class="window-titlebar">
+      <div class="window-controls">
+        <button class="wbtn close" onclick="closeWindow('${winId}')"></button>
+        <button class="wbtn min"   onclick="minimizeWindow('${winId}')"></button>
+        <button class="wbtn max"   onclick="maximizeWindow('${winId}')"></button>
+      </div>
+      <span class="window-title">🎬 NEURAL_STREAM</span>
+    </div>
+    <div class="window-body" style="flex-direction:column;overflow:hidden">
       <div style="display:flex;align-items:center;gap:12px;padding:7px 12px;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0;">
-        <select id="provider-select" style="background:var(--surface3);color:var(--gold2);border:1px solid var(--border-hi);border-radius:5px;font-family:var(--mono);font-size:11px;padding:4px 10px;outline:none;cursor:pointer;">
+        <select id="provider-select"
+          style="background:var(--surface3);color:var(--gold2);border:1px solid var(--border-hi);border-radius:5px;font-family:var(--mono);font-size:11px;padding:4px 10px;outline:none;cursor:pointer;">
           ${optionsHtml}
         </select>
-        <span style="font-family:var(--mono);font-size:10px;color:var(--text-mid);text-transform:uppercase;">${label}</span>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text-mid);text-transform:uppercase;flex:1;">${label}</span>
+        ${type === "tv" ? `
+        <button onclick="cinemaChangeEp()" style="background:var(--surface3);border:1px solid var(--border);border-radius:5px;color:var(--text-mid);font-family:var(--mono);font-size:10px;padding:4px 10px;cursor:pointer;letter-spacing:0.06em;">S/E ▸</button>
+        ` : ""}
       </div>
-      <iframe id="cinema-frame" style="flex:1;border:none;width:100%;background:#000;" allowfullscreen src="about:blank" allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe>
+      <iframe id="cinema-frame" style="flex:1;border:none;width:100%;background:#000;"
+        allowfullscreen src="about:blank"
+        allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe>
     </div>`;
 
-  const win = createWindow("NEURAL_STREAM", content);
-  delete openWindows[win.id];
-  win.id = winId;
-  win.querySelector(".wbtn.close").setAttribute("onclick", `closeWindow('${winId}')`);
-  win.querySelector(".wbtn.min").setAttribute("onclick",   `minimizeWindow('${winId}')`);
-  win.querySelector(".wbtn.max").setAttribute("onclick",   `maximizeWindow('${winId}')`);
-  win.style.cssText = "top:40px;left:80px;width:800px;height:560px";
+  document.getElementById("windows").appendChild(win);
+  makeDraggable(win); bringToFront(winId);
   openWindows[winId] = { title:"Cinema Player", iconId:"search" };
   refreshTaskbar();
 
   const select = win.querySelector("#provider-select");
   const iframe = win.querySelector("#cinema-frame");
 
-  function updateStream(pId) {
-    const p = PROVIDERS.find(x => x.id === pId); if (!p) return;
-    const url = (type === "tv" ? p.urls.tv : p.urls.movie)
-      .replace("{id}", tmdbId).replace("{season}", season).replace("{episode}", episode);
-    iframe.src = url;
+  // Store for S/E change
+  win._cinemaState = { tmdbId, type, season, episode };
+
+  function buildUrl(pId) {
+    const p = PROVIDERS.find(x => x.id === pId); if (!p) return null;
+    return (type === "tv" ? p.urls.tv : p.urls.movie)
+      .replace("{id}", tmdbId)
+      .replace("{season}", win._cinemaState.season)
+      .replace("{episode}", win._cinemaState.episode);
   }
 
-  select.onchange = (e) => updateStream(e.target.value);
-  updateStream(PROVIDERS[0].id);
+  function loadStream(pId) {
+    const url = buildUrl(pId);
+    if (!url) return;
+    // Route through proxy — strips CSP, X-Frame-Options, loads in iframe
+    iframe.src = `/fetch?url=${encodeURIComponent(url)}`;
+  }
+
+  select.onchange = (e) => loadStream(e.target.value);
+  loadStream(PROVIDERS[0].id);
+
+  win.cinemaChangeEp = function() {
+    const s  = prompt("Season:", win._cinemaState.season);  if (!s) return;
+    const ep = prompt("Episode:", win._cinemaState.episode); if (!ep) return;
+    win._cinemaState.season = s;
+    win._cinemaState.episode = ep;
+    loadStream(select.value);
+  };
+}
+
+// Expose for TV S/E button onclick
+function cinemaChangeEp() {
+  const win = document.getElementById("win-cinema-player");
+  if (win && win.cinemaChangeEp) win.cinemaChangeEp();
 }
 
 // ══════════════════════════════════════
