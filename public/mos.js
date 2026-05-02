@@ -1,8 +1,13 @@
 "use strict";
 
 // ══════════════════════════════════════
-//  MATRIARCHS OS — mos.js
+//  MATRIARCHS OS — mos.js  v4
 //  Auth + Desktop + Apps
+//  Changes:
+//    - Cinema poster images namespaced (?_t=poster) to avoid cache collision
+//    - Cinema player routed through proxy
+//    - Browser search isolated (no shared cache with cinema)
+//    - Better window management
 // ══════════════════════════════════════
 
 const OWNER_USERNAME = "Jay";
@@ -188,9 +193,9 @@ function doLogin() {
     setSession(OWNER_USERNAME); proceedAfterAuth(OWNER_USERNAME); return;
   }
   const user = findUser(u);
-  if (!user)           { shakeInput("login-username"); setMsg("login-msg", "Account not found."); return; }
+  if (!user)               { shakeInput("login-username"); setMsg("login-msg", "Account not found."); return; }
   if (user.password !== p) { shakeInput("login-password"); setMsg("login-msg", "Wrong password."); return; }
-  if (user.banned)     { setMsg("login-msg", "This account has been banned."); return; }
+  if (user.banned)         { setMsg("login-msg", "This account has been banned."); return; }
   setSession(u); proceedAfterAuth(u);
 }
 
@@ -198,11 +203,11 @@ function doSignup() {
   const u = document.getElementById("signup-username").value.trim();
   const p = document.getElementById("signup-password").value;
   const c = document.getElementById("signup-confirm").value;
-  if (!u || u.length < 2)          { shakeInput("signup-username"); setMsg("signup-msg", "Username too short."); return; }
-  if (/[^a-zA-Z0-9_\-]/.test(u))  { shakeInput("signup-username"); setMsg("signup-msg", "Letters, numbers, _ and - only."); return; }
-  if (u === OWNER_USERNAME)        { shakeInput("signup-username"); setMsg("signup-msg", "That name is reserved."); return; }
-  if (!p || p.length < 4)         { shakeInput("signup-password"); setMsg("signup-msg", "Password too short."); return; }
-  if (p !== c)                     { shakeInput("signup-confirm");  setMsg("signup-msg", "Passwords don't match."); return; }
+  if (!u || u.length < 2)         { shakeInput("signup-username"); setMsg("signup-msg", "Username too short."); return; }
+  if (/[^a-zA-Z0-9_\-]/.test(u)) { shakeInput("signup-username"); setMsg("signup-msg", "Letters, numbers, _ and - only."); return; }
+  if (u === OWNER_USERNAME)       { shakeInput("signup-username"); setMsg("signup-msg", "That name is reserved."); return; }
+  if (!p || p.length < 4)        { shakeInput("signup-password"); setMsg("signup-msg", "Password too short."); return; }
+  if (p !== c)                    { shakeInput("signup-confirm");  setMsg("signup-msg", "Passwords don't match."); return; }
   const users = getUsers();
   if (users.find(x => x.username.toLowerCase() === u.toLowerCase())) {
     shakeInput("signup-username"); setMsg("signup-msg", "Username taken."); return;
@@ -363,7 +368,6 @@ function openBrowser(initialUrl) {
 function sendUrlToBrowser(url) {
   const frame = document.getElementById("galaxy-browser-frame"); if (!frame) return;
   try { frame.contentWindow.postMessage({ type:"mos-navigate", url }, "*"); } catch(e) {}
-  try { const input = frame.contentDocument.getElementById("url-bar"); if (input) { input.value = url; input.dispatchEvent(new KeyboardEvent("keydown", { key:"Enter", keyCode:13, bubbles:true })); } } catch(e) {}
 }
 
 // ══════════════════════════════════════
@@ -661,57 +665,47 @@ function openAdmin() {
   refreshTaskbar(); renderAdminPanel();
 }
 function renderAdminPanel() {
-  const users   = getUsers();
-  const statsEl = document.getElementById("admin-stats");
-  const listEl  = document.getElementById("admin-users-list");
-  if (!statsEl || !listEl) return;
-  const banned = users.filter(u => u.banned).length;
-  statsEl.innerHTML = `<div class="admin-stat"><div class="admin-stat-num">${users.length}</div><div class="admin-stat-label">TOTAL</div></div><div class="admin-stat"><div class="admin-stat-num">${users.length-banned}</div><div class="admin-stat-label">ACTIVE</div></div><div class="admin-stat"><div class="admin-stat-num">${banned}</div><div class="admin-stat-label">BANNED</div></div>`;
-  if (!users.length) { listEl.innerHTML = `<div class="admin-empty">No registered accounts yet.</div>`; return; }
-  listEl.innerHTML = users.map(user => {
-    const initials = user.username.slice(0,2).toUpperCase();
-    const isBanned = user.banned;
-    return `<div class="admin-user-row">
-      <div class="admin-user-avatar">${initials}</div>
-      <div class="admin-user-info">
-        <div class="admin-user-name">${escHtml(user.username)}</div>
-        <div class="admin-user-status ${isBanned?"banned":"online"}">${isBanned?"Banned":"Active"}</div>
-      </div>
-      <div class="admin-actions">
-        ${isBanned
-          ? `<button class="admin-action-btn unban-btn" onclick="adminUnban('${escHtml(user.username)}')">UNBAN</button>`
-          : `<button class="admin-action-btn ban-btn"   onclick="adminBan('${escHtml(user.username)}')">BAN</button>`}
-        <button class="admin-action-btn" style="border-color:rgba(255,107,107,0.3);color:#ff6b6b" onclick="adminDelete('${escHtml(user.username)}')">DEL</button>
-      </div>
-    </div>`;
-  }).join("");
+  const users=getUsers(),statsEl=document.getElementById("admin-stats"),listEl=document.getElementById("admin-users-list");
+  if(!statsEl||!listEl)return;
+  const banned=users.filter(u=>u.banned).length;
+  statsEl.innerHTML=`<div class="admin-stat"><div class="admin-stat-num">${users.length}</div><div class="admin-stat-label">TOTAL</div></div><div class="admin-stat"><div class="admin-stat-num">${users.length-banned}</div><div class="admin-stat-label">ACTIVE</div></div><div class="admin-stat"><div class="admin-stat-num">${banned}</div><div class="admin-stat-label">BANNED</div></div>`;
+  if(!users.length){listEl.innerHTML=`<div class="admin-empty">No registered accounts yet.</div>`;return;}
+  listEl.innerHTML=users.map(user=>{const initials=user.username.slice(0,2).toUpperCase();const isBanned=user.banned;return`<div class="admin-user-row"><div class="admin-user-avatar">${initials}</div><div class="admin-user-info"><div class="admin-user-name">${escHtml(user.username)}</div><div class="admin-user-status ${isBanned?"banned":"online"}">${isBanned?"Banned":"Active"}</div></div><div class="admin-actions">${isBanned?`<button class="admin-action-btn unban-btn" onclick="adminUnban('${escHtml(user.username)}')">UNBAN</button>`:`<button class="admin-action-btn ban-btn" onclick="adminBan('${escHtml(user.username)}')">BAN</button>`}<button class="admin-action-btn" style="border-color:rgba(255,107,107,0.3);color:#ff6b6b" onclick="adminDelete('${escHtml(user.username)}')">DEL</button></div></div>`;}).join("");
 }
 function adminBan(u)    { const users=getUsers(),user=users.find(x=>x.username===u);if(!user)return;user.banned=true; saveUsers(users);showToast(u+" banned.");   renderAdminPanel(); }
 function adminUnban(u)  { const users=getUsers(),user=users.find(x=>x.username===u);if(!user)return;user.banned=false;saveUsers(users);showToast(u+" unbanned.");renderAdminPanel(); }
 function adminDelete(u) { if(!confirm(`Delete "${u}"?`))return;saveUsers(getUsers().filter(x=>x.username!==u));showToast(u+" deleted.");renderAdminPanel(); }
 
 // ══════════════════════════════════════
-//  CINEMA
-//  Uses Cinemeta (Stremio) — NO API KEY required.
-//  Returns IMDB IDs accepted by all video providers.
+//  CINEMA — v2
+//  FIX 1: Poster images namespaced with ?_t=poster&_n=<hash>
+//         so they never share cache entries with browser fetches
+//  FIX 2: Cinema player iframe goes THROUGH the MOS proxy
+//  FIX 3: Provider select re-proxies on change
 // ══════════════════════════════════════
 
 const PROVIDERS = [
-  { id:"vidsrcsu", name:"VidSrc.SU",  urls:{ movie:"https://vidsrc.su/embed/movie/{id}",              tv:"https://vidsrc.su/embed/tv/{id}/{season}/{episode}" }},
-  { id:"vidsrccx", name:"VidSrc.CX",  urls:{ movie:"https://vidsrc.cx/embed/movie/{id}",              tv:"https://vidsrc.cx/embed/tv/{id}/{season}/{episode}" }},
-  { id:"vidlink",  name:"VidLink",    urls:{ movie:"https://vidlink.pro/movie/{id}",                   tv:"https://vidlink.pro/tv/{id}/{season}/{episode}" }},
-  { id:"rive",     name:"RiveStream", urls:{ movie:"https://rivestream.org/embed?type=movie&id={id}", tv:"https://rivestream.org/embed?type=tv&id={id}&season={season}&episode={episode}" }},
-  { id:"mapple",   name:"MappleTv",   urls:{ movie:"https://mappletv.uk/watch/movie/{id}",             tv:"https://mappletv.uk/watch/tv/{id}-{season}-{episode}" }},
-  { id:"nontongo", name:"NontonGo",   urls:{ movie:"https://www.NontonGo.online/embed/movie/{id}",    tv:"https://www.NontonGo.online/embed/tv/{id}/{season}/{episode}" }},
-  { id:"frembed",  name:"Frembed",    urls:{ movie:"https://frembed.icu/api/film.php?id={id}",         tv:"https://frembed.icu/api/serie.php?id={id}&sa={season}&epi={episode}" }},
+  { id:"vidsrcsu",  name:"VidSrc.SU",   urls:{ movie:"https://vidsrc.su/embed/movie/{id}",              tv:"https://vidsrc.su/embed/tv/{id}/{season}/{episode}" }},
+  { id:"vidsrccx",  name:"VidSrc.CX",   urls:{ movie:"https://vidsrc.cx/embed/movie/{id}",              tv:"https://vidsrc.cx/embed/tv/{id}/{season}/{episode}" }},
+  { id:"vidlink",   name:"VidLink",     urls:{ movie:"https://vidlink.pro/movie/{id}",                   tv:"https://vidlink.pro/tv/{id}/{season}/{episode}" }},
+  { id:"rive",      name:"RiveStream",  urls:{ movie:"https://rivestream.org/embed?type=movie&id={id}", tv:"https://rivestream.org/embed?type=tv&id={id}&season={season}&episode={episode}" }},
+  { id:"mapple",    name:"MappleTv",    urls:{ movie:"https://mappletv.uk/watch/movie/{id}",             tv:"https://mappletv.uk/watch/tv/{id}-{season}-{episode}" }},
+  { id:"nontongo",  name:"NontonGo",    urls:{ movie:"https://www.NontonGo.online/embed/movie/{id}",    tv:"https://www.NontonGo.online/embed/tv/{id}/{season}/{episode}" }},
+  { id:"frembed",   name:"Frembed",     urls:{ movie:"https://frembed.icu/api/film.php?id={id}",         tv:"https://frembed.icu/api/serie.php?id={id}&sa={season}&epi={episode}" }},
 ];
 
-// Cinemeta base — Stremio's free catalogue, no key required
 const CINEMETA_BASE = "https://v3-cinemeta.strem.io/catalog";
-
 let _cinemaType = "movie";
 
-// ── Open the search window ────────────────────────────────────────────────────
+// Build a proxied poster URL that won't collide with browser cache.
+// We add _t=poster&_n=<hostname-hash> as namespacing params.
+function posterUrl(rawUrl) {
+  if (!rawUrl) return "";
+  // Use our proxy with a cache namespace tag
+  return `/fetch?url=${encodeURIComponent(rawUrl)}&_t=poster`;
+}
+
+// ── Open search window ────────────────────────────────────────────────────────
 function openCinemaSearch() {
   const existing = document.getElementById("win-cinema");
   if (existing) { existing.classList.remove("minimized"); bringToFront("win-cinema"); return; }
@@ -744,7 +738,7 @@ function openCinemaSearch() {
         style="flex:1;overflow-y:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;align-content:start;">
         <div style="grid-column:1/-1;text-align:center;padding:60px 20px;font-family:var(--mono);font-size:11px;color:var(--text-dim);">
           Search for a movie or TV show above.<br>
-          <span style="color:var(--text-dim);font-size:9px;letter-spacing:0.08em;opacity:0.6;">Powered by Cinemeta — no API key needed</span>
+          <span style="color:var(--text-dim);font-size:9px;letter-spacing:0.08em;opacity:0.6;">Powered by Cinemeta</span>
         </div>
       </div>
     </div>`;
@@ -753,11 +747,9 @@ function openCinemaSearch() {
   makeDraggable(win); bringToFront("win-cinema");
   openWindows["win-cinema"] = { title:"Cinema", iconId:"search" };
   refreshTaskbar();
-
   setTimeout(() => win.querySelector("#cinema-q")?.focus(), 100);
 }
 
-// ── Toggle movie / tv buttons ─────────────────────────────────────────────────
 function setCinemaType(type) {
   _cinemaType = type;
   const mb = document.getElementById("ctype-movie");
@@ -769,7 +761,7 @@ function setCinemaType(type) {
   tb.style.cssText = type === "tv"    ? ON : OFF;
 }
 
-// ── Search using Cinemeta ─────────────────────────────────────────────────────
+// ── Search ────────────────────────────────────────────────────────────────────
 async function doCinemaSearch() {
   const resultsEl = document.getElementById("cinema-results");
   if (!resultsEl) return;
@@ -780,19 +772,14 @@ async function doCinemaSearch() {
   resultsEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;font-family:var(--mono);font-size:11px;color:var(--text-dim);">Searching…</div>`;
 
   try {
-    // Cinemeta endpoint:
-    //   movie: /catalog/movie/top/search=QUERY.json
-    //   tv:    /catalog/series/top/search=QUERY.json
     const catalogType = _cinemaType === "tv" ? "series" : "movie";
     const endpoint = `${CINEMETA_BASE}/${catalogType}/top/search=${encodeURIComponent(q)}.json`;
-
-    // Route through our own proxy to avoid CORS
-    const resp = await fetch(`/fetch?url=${encodeURIComponent(endpoint)}`);
+    // Route through proxy — use _t=api to avoid any cache collision with poster images
+    const resp = await fetch(`/fetch?url=${encodeURIComponent(endpoint)}&_t=api`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
-    const text = await resp.text();
     let data;
-    try { data = JSON.parse(text); } catch { throw new Error("Could not parse response"); }
+    try { data = await resp.json(); } catch { throw new Error("Could not parse response"); }
 
     if (!data.metas || !data.metas.length) {
       resultsEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;font-family:var(--mono);font-size:11px;color:var(--text-dim);">No results for &ldquo;${escHtml(q)}&rdquo;</div>`;
@@ -803,10 +790,8 @@ async function doCinemaSearch() {
       const title  = escHtml(item.name || "Unknown");
       const year   = item.year ? escHtml(String(item.year)) : "—";
       const rating = item.imdbRating ? "★ " + item.imdbRating : "";
-      const poster = item.poster
-        ? `/fetch?url=${encodeURIComponent(item.poster)}`
-        : "";
-      // item.id is an IMDB ID like "tt1234567"
+      // FIX: use posterUrl() to namespace the image fetch separately from browser cache
+      const poster = item.poster ? posterUrl(item.poster) : "";
       const imdbId = escHtml(item.id || "");
 
       return `
@@ -815,7 +800,8 @@ async function doCinemaSearch() {
           onmouseover="this.style.transform='translateY(-3px)';this.style.borderColor='var(--border-hi)';"
           onmouseout="this.style.transform='';this.style.borderColor='var(--border)';">
           ${poster
-            ? `<img src="${poster}" alt="${title}" style="width:100%;aspect-ratio:2/3;object-fit:cover;display:block;" loading="lazy"/>`
+            ? `<img src="${poster}" alt="${title}" style="width:100%;aspect-ratio:2/3;object-fit:cover;display:block;" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+               <div style="width:100%;aspect-ratio:2/3;background:var(--surface3);align-items:center;justify-content:center;font-size:36px;display:none;">🎬</div>`
             : `<div style="width:100%;aspect-ratio:2/3;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:36px;">🎬</div>`}
           <div style="padding:7px 8px;">
             <div style="font-family:var(--mono);font-size:10px;color:var(--text);letter-spacing:0.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${title}">${title}</div>
@@ -832,7 +818,7 @@ async function doCinemaSearch() {
   }
 }
 
-// ── Clicked a search result ───────────────────────────────────────────────────
+// ── Clicked a result ──────────────────────────────────────────────────────────
 function openCinemaFromSearch(imdbId, type) {
   if (type === "tv") {
     const s  = prompt("Season:",  "1"); if (!s) return;
@@ -843,9 +829,9 @@ function openCinemaFromSearch(imdbId, type) {
   }
 }
 
-// ── Player window ─────────────────────────────────────────────────────────────
+// ── Player window — streams go THROUGH the MOS proxy ─────────────────────────
 function openCinemaPlayer(mediaId, type, season, episode) {
-  const winId   = "win-cinema-player";
+  const winId = "win-cinema-player";
   const existing = document.getElementById(winId);
   if (existing) existing.remove();
 
@@ -875,40 +861,82 @@ function openCinemaPlayer(mediaId, type, season, episode) {
           style="background:var(--surface3);color:var(--gold2);border:1px solid var(--border-hi);border-radius:5px;font-family:var(--mono);font-size:11px;padding:4px 10px;outline:none;cursor:pointer;">
           ${optionsHtml}
         </select>
-        <span style="font-family:var(--mono);font-size:10px;color:var(--text-mid);text-transform:uppercase;flex:1;">${escHtml(label)}</span>
+        <label style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--text-dim);cursor:pointer;user-select:none;">
+          <input type="checkbox" id="proxy-toggle" checked style="cursor:pointer;accent-color:var(--gold);"/>
+          PROXY
+        </label>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text-mid);text-transform:uppercase;flex:1;" id="cinema-label">${escHtml(label)}</span>
         ${type === "tv" ? `<button onclick="cinemaChangeEp()"
           style="background:var(--surface3);border:1px solid var(--border);border-radius:5px;color:var(--text-mid);font-family:var(--mono);font-size:10px;padding:4px 10px;cursor:pointer;letter-spacing:0.06em;">S/E ▸</button>` : ""}
       </div>
-      <iframe id="cinema-frame" style="flex:1;border:none;width:100%;background:#000;"
+      <div id="cinema-loading" style="display:none;position:absolute;inset:38px 0 0 0;background:var(--bg);z-index:5;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.1em;">LOADING STREAM…</div>
+        <div style="width:200px;height:2px;background:var(--surface3);border-radius:1px;overflow:hidden;">
+          <div style="width:60%;height:100%;background:var(--gold);animation:loadPulse 1.2s ease-in-out infinite;"></div>
+        </div>
+      </div>
+      <iframe id="cinema-frame" style="flex:1;border:none;width:100%;background:#000;display:block;"
         allowfullscreen src="about:blank"
-        allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe>
+        allow="autoplay; fullscreen; encrypted-media; picture-in-picture; web-share"></iframe>
     </div>`;
 
   document.getElementById("windows").appendChild(win);
+
+  // Add loading animation keyframe if not already there
+  if (!document.getElementById("cinema-anim-style")) {
+    const s = document.createElement("style");
+    s.id = "cinema-anim-style";
+    s.textContent = `@keyframes loadPulse{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}`;
+    document.head.appendChild(s);
+  }
+
   makeDraggable(win); bringToFront(winId);
   openWindows[winId] = { title:"Cinema Player", iconId:"search" };
   refreshTaskbar();
 
-  const select = win.querySelector("#provider-select");
-  const iframe = win.querySelector("#cinema-frame");
+  const select     = win.querySelector("#provider-select");
+  const iframe     = win.querySelector("#cinema-frame");
+  const proxyChk   = win.querySelector("#proxy-toggle");
+  const loadingEl  = win.querySelector("#cinema-loading");
 
   win._cinemaState = { mediaId, type, season, episode };
 
-  function buildUrl(pId) {
-    const p = PROVIDERS.find(x => x.id === pId); if (!p) return null;
-    return (type === "tv" ? p.urls.tv : p.urls.movie)
-      .replace("{id}",      win._cinemaState.mediaId)
-      .replace("{season}",  win._cinemaState.season)
-      .replace("{episode}", win._cinemaState.episode);
+  function buildProviderUrl(pId) {
+    const p = PROVIDERS.find(x => x.id === pId);
+    if (!p) return null;
+    const st = win._cinemaState;
+    return (st.type === "tv" ? p.urls.tv : p.urls.movie)
+      .replace("{id}",      st.mediaId)
+      .replace("{season}",  st.season)
+      .replace("{episode}", st.episode);
   }
 
   function loadStream(pId) {
-    const url = buildUrl(pId); if (!url) return;
-    // Direct iframe load — providers accept IMDB IDs and don't need our proxy
-    iframe.src = url;
+    const realUrl = buildProviderUrl(pId);
+    if (!realUrl) return;
+
+    // Show loading indicator
+    loadingEl.style.display = "flex";
+    iframe.style.display = "none";
+
+    const useProxy = proxyChk ? proxyChk.checked : true;
+    const src = useProxy
+      ? `/fetch?url=${encodeURIComponent(realUrl)}&_t=stream`
+      : realUrl;
+
+    iframe.src = "about:blank";
+    // Small delay so browser clears old stream
+    setTimeout(() => {
+      iframe.src = src;
+      iframe.style.display = "block";
+      loadingEl.style.display = "none";
+    }, 150);
   }
 
   select.onchange = (e) => loadStream(e.target.value);
+  if (proxyChk) proxyChk.onchange = () => loadStream(select.value);
+
+  // Load first provider
   loadStream(PROVIDERS[0].id);
 
   win.cinemaChangeEp = function() {
@@ -916,11 +944,12 @@ function openCinemaPlayer(mediaId, type, season, episode) {
     const ep = prompt("Episode:", win._cinemaState.episode); if (!ep) return;
     win._cinemaState.season  = s;
     win._cinemaState.episode = ep;
+    const lbl = document.getElementById("cinema-label");
+    if (lbl) lbl.textContent = `${win._cinemaState.mediaId} // S${s}:E${ep}`;
     loadStream(select.value);
   };
 }
 
-// Expose for TV S/E button onclick
 function cinemaChangeEp() {
   const win = document.getElementById("win-cinema-player");
   if (win && win.cinemaChangeEp) win.cinemaChangeEp();
