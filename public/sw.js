@@ -1,92 +1,65 @@
 "use strict";
 
 // ══════════════════════════════════════
-//  MATRIARCHS OS — proxy-sw.js
-//  Scoped Service Worker — intercepts all external fetches
-//  originating from proxied pages (/fetch?url=...)
-//  and routes them back through the MOS proxy.
-//  Acts as a catch-all when the runtime script misses something.
+//  MATRIARCHS OS — Service Worker Proxy
+//  Intercepts ALL fetch requests and
+//  routes them through the MOS proxy
 // ══════════════════════════════════════
 
-const SW_VERSION  = "mos-sw-v4";
-const OWN_ORIGIN  = self.location.origin;
-const PROXY_PATH  = OWN_ORIGIN + "/fetch?url=";
+const PROXY_PREFIX = "/fetch?url=";
+const CACHE_NAME   = "mos-proxy-v1";
 
-// Headers that reveal proxy identity — strip before forwarding
-const STRIP_REQ = new Set([
-  "origin","referer","x-forwarded-for","x-forwarded-host",
-  "x-forwarded-proto","x-real-ip","via","forwarded",
+// These are our own assets — never proxy them
+const OWN_ORIGINS = new Set([
+  self.location.origin,
 ]);
 
-// ── install / activate ────────────────────────────────────────────────────────
-self.addEventListener("install", () => self.skipWaiting());
+function shouldProxy(url) {
+  try {
+    const u = new URL(url);
+    // Don't proxy our own origin, data URIs, blobs, chrome-extension etc
+    if (OWN_ORIGINS.has(u.origin)) return false;
+    if (u.protocol === "data:")        return false;
+    if (u.protocol === "blob:")        return false;
+    if (u.protocol === "chrome-extension:") return false;
+    if (u.pathname.startsWith("/fetch")) return false;
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function toProxied(url) {
+  return self.location.origin + PROXY_PREFIX + encodeURIComponent(url);
+}
+
+self.addEventListener("install", (e) => {
+  self.skipWaiting();
+});
 
 self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(
-        keys.filter(k => k !== SW_VERSION).map(k => caches.delete(k))
-      ))
-      .then(() => self.clients.claim())
-  );
+  e.waitUntil(self.clients.claim());
 });
 
-// ── fetch interception ────────────────────────────────────────────────────────
 self.addEventListener("fetch", (e) => {
-  const url = e.request.url;
+  const req = e.request;
+  const url = req.url;
 
-  // Fast exits — never touch own-origin, already-proxied, or non-HTTP
-  if (url.startsWith(OWN_ORIGIN + "/")) return;
-  if (url.includes("/fetch?url="))       return;
-  if (!url.startsWith("http"))           return;
-  if (url.startsWith("data:") || url.startsWith("blob:")) return;
+  // Skip non-http(s) and already-proxied requests
+  if (!url.startsWith("http")) return;
+  if (url.includes("/fetch?url=")) return;
+  if (url.startsWith(self.location.origin + "/")) return;
 
-  // Only intercept if request comes FROM a proxied page
-  // (client URL will contain /fetch?url=)
+  if (!shouldProxy(url)) return;
+
   e.respondWith(
-    (e.clientId
-      ? self.clients.get(e.clientId)
-      : Promise.resolve(null)
-    ).then(client => {
-      // If we can't identify the client, or it's not a proxied page, pass through
-      if (!client || !client.url.includes("/fetch?url=")) {
-        return fetch(e.request);
-      }
-      return proxyFetch(url, e.request);
-    }).catch(() => fetch(e.request))
+    fetch(toProxied(url), {
+      method:  req.method,
+      headers: req.headers,
+      body:    req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined,
+      redirect: "follow",
+    }).catch((err) => {
+      return new Response("Proxy error: " + err.message, { status: 502 });
+    })
   );
 });
-
-// ── proxy the request ─────────────────────────────────────────────────────────
-function proxyFetch(url, original) {
-  const proxiedUrl = PROXY_PATH + encodeURIComponent(url);
-
-  // Build clean headers
-  const headers = {};
-  for (const [k, v] of original.headers.entries()) {
-    if (!STRIP_REQ.has(k.toLowerCase())) {
-      headers[k] = v;
-    }
-  }
-
-  const method = original.method || "GET";
-  const isBodyless = method === "GET" || method === "HEAD";
-
-  return fetch(proxiedUrl, {
-    method,
-    headers,
-    body:        isBodyless ? undefined : original.body,
-    mode:        "cors",
-    credentials: "omit",
-    redirect:    "follow",
-  }).catch(err => {
-    console.warn("[SW] proxy failed for", url, "—", err.message);
-    // Last resort: try direct (will fail for CORS-restricted origins, but worth trying)
-    return fetch(original).catch(() =>
-      new Response(
-        JSON.stringify({ error: "SW proxy failed: " + err.message }),
-        { status: 502, headers: { "Content-Type": "application/json" } }
-      )
-    );
-  });
-}
