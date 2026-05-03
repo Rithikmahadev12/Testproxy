@@ -1,12 +1,12 @@
 "use strict";
 
 // ══════════════════════════════════════
-//  MATRIARCHS OS — proxyHandler.js  v5
-//  Full-fidelity reverse proxy
-//  - Proper streaming for binary/media
-//  - YouTube/Google spoofed headers
-//  - Robust redirect following
-//  - Gzip/brotli/zstd decompression
+//  MATRIARCHS OS — proxyHandler.js  v7
+//  • LRU in-memory cache (static assets)
+//  • Range request forwarding (video seek)
+//  • WASM binary streaming
+//  • ES module JS rewriting
+//  • Better error recovery
 // ══════════════════════════════════════
 
 const http   = require("http");
@@ -15,46 +15,88 @@ const url    = require("url");
 const zlib   = require("zlib");
 
 const { isBlocked, cleanResponseHeaders, buildRequestHeaders } = require("./blocklist");
-const { rewriteHtml, rewriteCss, injectHelpers }               = require("./rewriter");
+const { rewriteHtml, rewriteCss, rewriteJs, injectHelpers }    = require("./rewriter");
 
 const MAX_REDIRECTS  = 15;
 const TIMEOUT_MS     = 30_000;
-const MAX_BODY_SIZE  = 50 * 1024 * 1024; // 50MB
+const MAX_BODY_SIZE  = 60 * 1024 * 1024; // 60MB
 
+// ── Connection pools ──────────────────────────────────────────────────────────
 const httpAgent  = new http.Agent({
-  keepAlive: true,
-  maxSockets: 256,
-  timeout: TIMEOUT_MS,
+  keepAlive: true, maxSockets: 256, timeout: TIMEOUT_MS,
+});
+const httpsAgent = new https.Agent({
+  keepAlive: true, maxSockets: 256, timeout: TIMEOUT_MS,
+  rejectUnauthorized: false, checkServerIdentity: () => {},
 });
 
-const httpsAgent = new https.Agent({
-  keepAlive: true,
-  maxSockets: 256,
-  timeout: TIMEOUT_MS,
-  rejectUnauthorized: false,
-  checkServerIdentity: () => {},
-});
+// ── LRU Cache ─────────────────────────────────────────────────────────────────
+// Only caches static / cacheable content-types
+const CACHE_MAX = 200;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+class LRUCache {
+  constructor(max, ttl) {
+    this.max  = max;
+    this.ttl  = ttl;
+    this.map  = new Map();
+  }
+  _evict() {
+    let oldest = null, oldestTs = Infinity;
+    for (const [k, v] of this.map) {
+      if (v.ts < oldestTs) { oldestTs = v.ts; oldest = k; }
+    }
+    if (oldest) this.map.delete(oldest);
+  }
+  get(key) {
+    const e = this.map.get(key);
+    if (!e) return null;
+    if (Date.now() - e.ts > this.ttl) { this.map.delete(key); return null; }
+    // Move to end (LRU touch)
+    this.map.delete(key);
+    this.map.set(key, e);
+    return e;
+  }
+  set(key, value) {
+    if (this.map.size >= this.max) this._evict();
+    this.map.set(key, { ...value, ts: Date.now() });
+  }
+}
+
+const CACHE = new LRUCache(CACHE_MAX, CACHE_TTL);
+
+// Content types we cache
+function isCacheable(ct, method) {
+  if (method !== "GET") return false;
+  const c = (ct || "").toLowerCase();
+  return c.includes("text/css") ||
+         c.includes("javascript") ||
+         c.includes("application/wasm") ||
+         c.includes("font/") ||
+         c.includes("image/") ||
+         c.includes("application/json");
+}
 
 // ── Per-site User-Agent / header overrides ────────────────────────────────────
 const SITE_OVERRIDES = {
   "youtube.com": {
-    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "user-agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     "accept-language": "en-US,en;q=0.9",
-    "sec-fetch-mode": "navigate",
-    "sec-fetch-dest": "document",
-    "sec-fetch-site": "none",
-    "sec-fetch-user": "?1",
+    "sec-fetch-mode":  "navigate",
+    "sec-fetch-dest":  "document",
+    "sec-fetch-site":  "none",
+    "sec-fetch-user":  "?1",
     "upgrade-insecure-requests": "1",
   },
   "google.com": {
-    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "user-agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     "accept-language": "en-US,en;q=0.9",
   },
   "reddit.com": {
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "accept":     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   },
 };
 
@@ -73,6 +115,10 @@ function setCORS(res) {
   res.setHeader("Access-Control-Allow-Headers",     "*");
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Expose-Headers",    "*");
+  // Required for WASM threads / SharedArrayBuffer
+  res.setHeader("Cross-Origin-Opener-Policy",   "unsafe-none");
+  res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
 }
 
 function getProxyBase(req) {
@@ -84,15 +130,13 @@ function getProxyBase(req) {
 function parseTarget(rawParam) {
   if (!rawParam) return null;
   let s;
-  try { s = decodeURIComponent(rawParam).trim(); }
-  catch { s = rawParam.trim(); }
+  try { s = decodeURIComponent(rawParam).trim(); } catch { s = rawParam.trim(); }
   if (!s) return null;
   try {
     const u = new URL(s);
     if (u.protocol === "http:" || u.protocol === "https:") return u;
   } catch {}
-  try { return new URL("https://" + s); }
-  catch {}
+  try { return new URL("https://" + s); } catch {}
   return null;
 }
 
@@ -108,24 +152,19 @@ function readBody(req) {
 function decompress(src, encoding) {
   const enc = (encoding || "").toLowerCase().trim();
   try {
-    if (enc === "gzip")    return src.pipe(zlib.createGunzip());
-    if (enc === "br")      return src.pipe(zlib.createBrotliDecompress());
-    if (enc === "brotli")  return src.pipe(zlib.createBrotliDecompress());
-    if (enc === "deflate") return src.pipe(zlib.createInflate());
+    if (enc === "gzip")   return src.pipe(zlib.createGunzip());
+    if (enc === "br")     return src.pipe(zlib.createBrotliDecompress());
+    if (enc === "brotli") return src.pipe(zlib.createBrotliDecompress());
+    if (enc === "deflate")return src.pipe(zlib.createInflate());
     if (enc === "zstd" && zlib.createZstdDecompress) return src.pipe(zlib.createZstdDecompress());
-  } catch (e) {
-    console.warn("[MOS] decompress failed for", enc, e.message);
-  }
+  } catch (e) { console.warn("[MOS] decompress failed:", enc, e.message); }
   return src;
 }
 
 function toBuffer(readable) {
   return new Promise((resolve, reject) => {
     const chunks = []; let total = 0;
-    readable.on("data",  (c) => {
-      total += c.length;
-      if (total < MAX_BODY_SIZE) chunks.push(c);
-    });
+    readable.on("data",  (c) => { total += c.length; if (total < MAX_BODY_SIZE) chunks.push(c); });
     readable.on("end",   ()  => resolve(Buffer.concat(chunks)));
     readable.on("error", (e) => reject(e));
   });
@@ -138,8 +177,7 @@ function sendError(res, code, msg) {
   res.end(JSON.stringify({ error: msg }));
 }
 
-// ── Cookie jar per-session (in-memory, keyed by hostname) ────────────────────
-// Simple: store Set-Cookie values and forward them on next request to same host
+// ── Cookie jar ────────────────────────────────────────────────────────────────
 const cookieJar = new Map();
 
 function storeCookies(hostname, setCookieHeaders) {
@@ -162,9 +200,9 @@ function getCookieHeader(hostname) {
   return pairs.length ? pairs.join("; ") : null;
 }
 
-// ══════════════════════════════════════════════════════
+// ════════════════════════════
 //  MAIN ENTRY
-// ══════════════════════════════════════════════════════
+// ════════════════════════════
 async function handleFetch(req, res) {
   setCORS(res);
 
@@ -177,9 +215,23 @@ async function handleFetch(req, res) {
   if (isBlocked(targetUrl.hostname)) return sendError(res, 403, "Host blocked by MOS policy");
 
   const proxyBase = getProxyBase(req);
-  const bodyBuf   = ["GET","HEAD"].includes((req.method||"GET").toUpperCase())
-    ? null
-    : await readBody(req);
+  const method    = (req.method || "GET").toUpperCase();
+  const bodyBuf   = ["GET","HEAD"].includes(method) ? null : await readBody(req);
+
+  // ── Cache hit for GET requests ──────────────────────────────────────────────
+  if (method === "GET") {
+    const cacheKey = targetUrl.href;
+    const cached   = CACHE.get(cacheKey);
+    if (cached) {
+      setCORS(res);
+      res.writeHead(cached.status, {
+        ...cached.headers,
+        "x-mos-cache": "HIT",
+      });
+      res.end(cached.body);
+      return;
+    }
+  }
 
   try {
     await proxyRequest({ req, res, targetUrl, proxyBase, noRewrite, bodyBuf, hops: 0 });
@@ -189,26 +241,26 @@ async function handleFetch(req, res) {
   }
 }
 
-// ══════════════════════════════════════════════════════
+// ════════════════════════════
 //  PROXY LOOP
-// ══════════════════════════════════════════════════════
+// ════════════════════════════
 async function proxyRequest({ req, res, targetUrl, proxyBase, noRewrite, bodyBuf, hops }) {
   if (hops > MAX_REDIRECTS) return sendError(res, 310, "Too many redirects");
 
   const isHttps = targetUrl.protocol === "https:";
   const lib     = isHttps ? https : http;
   const agent   = isHttps ? httpsAgent : httpAgent;
+  const method  = (req.method || "GET").toUpperCase();
 
   const siteOverrides = getSiteOverrides(targetUrl.hostname);
+  const storedCookie  = getCookieHeader(targetUrl.hostname);
 
-  // Build the stored cookie string for this host
-  const storedCookie = getCookieHeader(targetUrl.hostname);
-
+  // Build outgoing headers
   const outHeaders = buildRequestHeaders(req.headers, {
     "host":            targetUrl.host,
     "referer":         targetUrl.origin + "/",
     "origin":          targetUrl.origin,
-    "accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+    "accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "accept-language": "en-US,en;q=0.9",
     "accept-encoding": "gzip, deflate, br",
     "cache-control":   "no-cache",
@@ -220,18 +272,18 @@ async function proxyRequest({ req, res, targetUrl, proxyBase, noRewrite, bodyBuf
     "sec-fetch-user":  "?1",
     "dnt":             "1",
     ...siteOverrides,
-    // Merge cookies: incoming + stored
-    "cookie": [
-      storedCookie,
-      req.headers["cookie"] || ""
-    ].filter(Boolean).join("; ") || undefined,
+    "cookie": [storedCookie, req.headers["cookie"] || ""].filter(Boolean).join("; ") || undefined,
     ...(bodyBuf ? {
       "content-length": String(bodyBuf.length),
       "content-type":   req.headers["content-type"] || "application/x-www-form-urlencoded",
     } : {}),
   });
 
-  // Remove undefined values
+  // ── Forward Range header (crucial for video seeking) ──────────────────────
+  const rangeHdr = req.headers["range"];
+  if (rangeHdr) outHeaders["range"] = rangeHdr;
+
+  // Clean undefined values
   for (const k of Object.keys(outHeaders)) {
     if (outHeaders[k] === undefined) delete outHeaders[k];
   }
@@ -242,7 +294,7 @@ async function proxyRequest({ req, res, targetUrl, proxyBase, noRewrite, bodyBuf
     hostname: targetUrl.hostname,
     port:     targetUrl.port || (isHttps ? 443 : 80),
     path:     pathWithQuery,
-    method:   (req.method || "GET").toUpperCase(),
+    method,
     headers:  outHeaders,
     timeout:  TIMEOUT_MS,
     agent,
@@ -254,12 +306,12 @@ async function proxyRequest({ req, res, targetUrl, proxyBase, noRewrite, bodyBuf
         const status = pres.statusCode;
         const pheads = pres.headers;
 
-        // Store cookies from this response
+        // Store cookies
         if (pheads["set-cookie"]) {
           storeCookies(targetUrl.hostname, pheads["set-cookie"]);
         }
 
-        // ── REDIRECTS ────────────────────────────────────────────────────
+        // ── REDIRECTS ─────────────────────────────────────────────────────
         if (status >= 300 && status < 400 && pheads["location"]) {
           pres.resume();
           let loc;
@@ -268,34 +320,30 @@ async function proxyRequest({ req, res, targetUrl, proxyBase, noRewrite, bodyBuf
           if (isBlocked(loc.hostname)) return sendError(res, 403, "Redirect target blocked");
           setCORS(res);
           return resolve(proxyRequest({
-            req, res,
-            targetUrl: loc,
-            proxyBase, noRewrite,
-            bodyBuf: null,
-            hops: hops + 1,
+            req, res, targetUrl: loc, proxyBase, noRewrite, bodyBuf: null, hops: hops + 1,
           }));
         }
 
-        const rawCT = pheads["content-type"] || "";
-        const ct    = rawCT.toLowerCase();
-        const enc   = (pheads["content-encoding"] || "").toLowerCase().trim();
+        const rawCT   = pheads["content-type"] || "";
+        const ct      = rawCT.toLowerCase();
+        const enc     = (pheads["content-encoding"] || "").toLowerCase().trim();
+        const isRange = status === 206;
 
-        const isHtml   = ct.includes("text/html");
-        const isCss    = ct.includes("text/css");
-        const isJs     = ct.includes("javascript") || ct.includes("ecmascript");
-        const isJson   = ct.includes("application/json");
-        const isSvg    = ct.includes("image/svg");
-        const isXml    = ct.includes("xml") && !isHtml;
-        const isText   = ct.startsWith("text/") && !isHtml && !isCss;
-        const isMedia  = ct.startsWith("video/") || ct.startsWith("audio/");
-        const isBinary = !isHtml && !isCss && !isJs && !isJson && !isSvg && !isXml && !isText;
-
-        // Only rewrite HTML, CSS, SVG — NOT JS (shim broke ES modules)
-        const shouldRewrite = !noRewrite && (isHtml || isCss || isSvg);
+        const isHtml  = ct.includes("text/html");
+        const isCss   = ct.includes("text/css");
+        const isJs    = ct.includes("javascript") || ct.includes("ecmascript");
+        const isJson  = ct.includes("application/json");
+        const isSvg   = ct.includes("image/svg");
+        const isWasm  = ct.includes("application/wasm") || targetUrl.pathname.endsWith(".wasm");
+        const isMedia = ct.startsWith("video/") || ct.startsWith("audio/");
+        const isFont  = ct.startsWith("font/") || ct.includes("font");
+        const isImage = ct.startsWith("image/") && !isSvg;
+        const isBinary = isWasm || isMedia || isFont || isImage ||
+                         (!isHtml && !isCss && !isJs && !isJson && !isSvg);
 
         const cleanH = cleanResponseHeaders(pheads);
 
-        // Rewrite Set-Cookie to work cross-origin
+        // Rewrite Set-Cookie for cross-origin
         if (pheads["set-cookie"]) {
           cleanH["set-cookie"] = (
             Array.isArray(pheads["set-cookie"]) ? pheads["set-cookie"] : [pheads["set-cookie"]]
@@ -310,14 +358,18 @@ async function proxyRequest({ req, res, targetUrl, proxyBase, noRewrite, bodyBuf
 
         setCORS(res);
 
-        // ── STREAMING PASS-THROUGH: JS, binary, media, images ──────────
-        // JS must stream unchanged — prepending anything breaks ES modules
-        if (isJs || isBinary || isMedia) {
-          const passH = {
-            ...cleanH,
-            "content-type": rawCT,
-          };
+        // ── STREAMING PASS-THROUGH: binary, media, WASM, images, fonts ─────
+        // Range responses (video seeking) ALWAYS stream through unchanged
+        if (isBinary || isRange) {
+          const passH = { ...cleanH, "content-type": rawCT };
           if (enc) passH["content-encoding"] = enc;
+          if (pheads["content-range"])  passH["content-range"]  = pheads["content-range"];
+          if (pheads["accept-ranges"])  passH["accept-ranges"]  = pheads["accept-ranges"];
+          if (pheads["content-length"]) passH["content-length"] = pheads["content-length"];
+
+          // For WASM, ensure proper MIME type
+          if (isWasm) passH["content-type"] = "application/wasm";
+
           res.writeHead(status, passH);
           pres.pipe(res);
           pres.on("end",   resolve);
@@ -325,42 +377,87 @@ async function proxyRequest({ req, res, targetUrl, proxyBase, noRewrite, bodyBuf
           return;
         }
 
-        // ── TEXT / REWRITABLE: decompress + rewrite + send ──────────────
+        // ── JS: decompress, rewrite ES module imports, send ──────────────
+        if (isJs) {
+          delete cleanH["content-encoding"];
+          delete cleanH["content-length"];
+          delete cleanH["transfer-encoding"];
+          if (pheads["accept-ranges"]) cleanH["accept-ranges"] = pheads["accept-ranges"];
+
+          let bodyStream;
+          try { bodyStream = decompress(pres, enc); } catch { bodyStream = pres; }
+
+          let rawBody;
+          try { rawBody = await toBuffer(bodyStream); } catch (e) {
+            return sendError(res, 502, "Failed to read JS: " + e.message);
+          }
+
+          let body = rawBody.toString("utf8");
+          // Safe ES module URL rewriting
+          try { body = rewriteJs(body, targetUrl.href, proxyBase); } catch (e) {
+            console.warn("[MOS] rewriteJs error:", e.message);
+          }
+
+          const outBuf = Buffer.from(body, "utf8");
+
+          // Cache JS
+          if (method === "GET") {
+            CACHE.set(targetUrl.href, {
+              status, body: outBuf,
+              headers: { ...cleanH, "content-type": rawCT, "content-length": String(outBuf.length) }
+            });
+          }
+
+          res.writeHead(status, {
+            ...cleanH,
+            "content-type":   rawCT || "application/javascript; charset=utf-8",
+            "content-length": String(outBuf.length),
+          });
+          res.end(outBuf);
+          resolve();
+          return;
+        }
+
+        // ── TEXT/HTML/CSS: decompress, rewrite, send ──────────────────────
         delete cleanH["content-encoding"];
         delete cleanH["content-length"];
         delete cleanH["transfer-encoding"];
+        if (pheads["accept-ranges"]) cleanH["accept-ranges"] = pheads["accept-ranges"];
 
         let bodyStream;
-        try { bodyStream = decompress(pres, enc); }
-        catch { bodyStream = pres; }
+        try { bodyStream = decompress(pres, enc); } catch { bodyStream = pres; }
 
         let rawBody;
-        try { rawBody = await toBuffer(bodyStream); }
-        catch (e) {
+        try { rawBody = await toBuffer(bodyStream); } catch (e) {
           return sendError(res, 502, "Failed to read upstream: " + e.message);
         }
 
         let body = rawBody.toString("utf8");
 
         if (isHtml) {
-          try { body = rewriteHtml(body, targetUrl.href, proxyBase); } catch(e) {
+          try { body = rewriteHtml(body, targetUrl.href, proxyBase); } catch (e) {
             console.warn("[MOS] rewriteHtml error:", e.message);
           }
-          try { body = injectHelpers(body, targetUrl.href, proxyBase); } catch(e) {
+          try { body = injectHelpers(body, targetUrl.href, proxyBase); } catch (e) {
             console.warn("[MOS] injectHelpers error:", e.message);
           }
         } else if (isCss) {
-          try { body = rewriteCss(body, targetUrl.href, proxyBase); } catch(e) {
+          try { body = rewriteCss(body, targetUrl.href, proxyBase); } catch (e) {
             console.warn("[MOS] rewriteCss error:", e.message);
           }
-        } else if (isJs) {
-          // DO NOT prepend shim — it breaks ES modules (import/export must be at top)
-          // The HTML runtime script already proxies fetch/XHR for the whole page
         } else if (isSvg) {
           try { body = rewriteHtml(body, targetUrl.href, proxyBase); } catch {}
         }
 
         const outBuf = Buffer.from(body, "utf8");
+
+        // Cache CSS/JSON
+        if (method === "GET" && isCacheable(ct, method) && !isHtml) {
+          CACHE.set(targetUrl.href, {
+            status, body: outBuf,
+            headers: { ...cleanH, "content-type": rawCT, "content-length": String(outBuf.length) }
+          });
+        }
 
         res.writeHead(status, {
           ...cleanH,
@@ -390,29 +487,6 @@ async function proxyRequest({ req, res, targetUrl, proxyBase, noRewrite, bodyBuf
     if (bodyBuf) preq.write(bodyBuf);
     preq.end();
   });
-}
-
-// ── JS shim prepended to every JS file ───────────────────────────────────────
-function buildJsShim(proxyBase, origin, targetHref) {
-  const prefix = `${proxyBase}/fetch?url=`;
-  return `/* MOS-PROXY-SHIM */
-(function(){
-  var __PFX=${JSON.stringify(prefix)};
-  var __OR=${JSON.stringify(origin)};
-  var __TG=${JSON.stringify(targetHref)};
-  function _p(u){
-    if(!u||typeof u!=='string')return u;
-    var s=u.trim();
-    if(!s||s.startsWith(__PFX)||s.startsWith('data:')||s.startsWith('blob:')||s.startsWith('javascript:')||s.startsWith('#'))return u;
-    if(s.startsWith('//'))return __PFX+encodeURIComponent('https:'+s);
-    if(/^https?:\\/\\//i.test(s))return __PFX+encodeURIComponent(s);
-    if(s.startsWith('/'))return __PFX+encodeURIComponent(__OR+s);
-    try{return __PFX+encodeURIComponent(new URL(s,__TG).href);}catch(e){return u;}
-  }
-  try{var _f=window.fetch;if(_f)window.fetch=function(i,o){try{i=typeof i==='string'?_p(i):i;}catch(e){}return _f.call(this,i,o)};}catch(e){}
-  try{var _x=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){var a=[].slice.call(arguments);try{a[1]=_p(u);}catch(e){}return _x.apply(this,a)};}catch(e){}
-})();
-`;
 }
 
 module.exports = { handleFetch };
