@@ -1,13 +1,11 @@
 "use strict";
 
 // ══════════════════════════════════════
-//  MATRIARCHS OS — mos.js  v4
-//  Auth + Desktop + Apps
-//  Changes:
-//    - Cinema poster images namespaced (?_t=poster) to avoid cache collision
-//    - Cinema player routed through proxy
-//    - Browser search isolated (no shared cache with cinema)
-//    - Better window management
+//  MATRIARCHS OS — mos.js  v5
+//  Fixes:
+//    [1] Cinema black screen → providers load DIRECT (no proxy) by default
+//    [2] Search shows poster → message handler scoped to browser frame only
+//    [3] Poster images use namespaced proxy cache (?_t=poster)
 // ══════════════════════════════════════
 
 const OWNER_USERNAME = "Jay";
@@ -677,11 +675,7 @@ function adminUnban(u)  { const users=getUsers(),user=users.find(x=>x.username==
 function adminDelete(u) { if(!confirm(`Delete "${u}"?`))return;saveUsers(getUsers().filter(x=>x.username!==u));showToast(u+" deleted.");renderAdminPanel(); }
 
 // ══════════════════════════════════════
-//  CINEMA — v2
-//  FIX 1: Poster images namespaced with ?_t=poster&_n=<hash>
-//         so they never share cache entries with browser fetches
-//  FIX 2: Cinema player iframe goes THROUGH the MOS proxy
-//  FIX 3: Provider select re-proxies on change
+//  CINEMA
 // ══════════════════════════════════════
 
 const PROVIDERS = [
@@ -697,15 +691,14 @@ const PROVIDERS = [
 const CINEMETA_BASE = "https://v3-cinemeta.strem.io/catalog";
 let _cinemaType = "movie";
 
-// Build a proxied poster URL that won't collide with browser cache.
-// We add _t=poster&_n=<hostname-hash> as namespacing params.
+// Poster images go through proxy with a cache namespace tag so they never
+// collide with browser page fetches.
 function posterUrl(rawUrl) {
   if (!rawUrl) return "";
-  // Use our proxy with a cache namespace tag
   return `/fetch?url=${encodeURIComponent(rawUrl)}&_t=poster`;
 }
 
-// ── Open search window ────────────────────────────────────────────────────────
+// ── Search window ─────────────────────────────────────────────────────────────
 function openCinemaSearch() {
   const existing = document.getElementById("win-cinema");
   if (existing) { existing.classList.remove("minimized"); bringToFront("win-cinema"); return; }
@@ -761,7 +754,6 @@ function setCinemaType(type) {
   tb.style.cssText = type === "tv"    ? ON : OFF;
 }
 
-// ── Search ────────────────────────────────────────────────────────────────────
 async function doCinemaSearch() {
   const resultsEl = document.getElementById("cinema-results");
   if (!resultsEl) return;
@@ -774,7 +766,7 @@ async function doCinemaSearch() {
   try {
     const catalogType = _cinemaType === "tv" ? "series" : "movie";
     const endpoint = `${CINEMETA_BASE}/${catalogType}/top/search=${encodeURIComponent(q)}.json`;
-    // Route through proxy — use _t=api to avoid any cache collision with poster images
+    // _t=api keeps this cache namespace separate from poster and stream fetches
     const resp = await fetch(`/fetch?url=${encodeURIComponent(endpoint)}&_t=api`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
@@ -790,7 +782,6 @@ async function doCinemaSearch() {
       const title  = escHtml(item.name || "Unknown");
       const year   = item.year ? escHtml(String(item.year)) : "—";
       const rating = item.imdbRating ? "★ " + item.imdbRating : "";
-      // FIX: use posterUrl() to namespace the image fetch separately from browser cache
       const poster = item.poster ? posterUrl(item.poster) : "";
       const imdbId = escHtml(item.id || "");
 
@@ -818,7 +809,6 @@ async function doCinemaSearch() {
   }
 }
 
-// ── Clicked a result ──────────────────────────────────────────────────────────
 function openCinemaFromSearch(imdbId, type) {
   if (type === "tv") {
     const s  = prompt("Season:",  "1"); if (!s) return;
@@ -829,7 +819,11 @@ function openCinemaFromSearch(imdbId, type) {
   }
 }
 
-// ── Player window — streams go THROUGH the MOS proxy ─────────────────────────
+// ── Player window ─────────────────────────────────────────────────────────────
+// FIX [1]: Video providers are loaded DIRECT (no MOS proxy) by default.
+// The proxy toggle is now opt-in (unchecked by default).
+// Providers like VidSrc detect proxy headers and serve blank pages —
+// loading them directly in the iframe avoids this entirely.
 function openCinemaPlayer(mediaId, type, season, episode) {
   const winId = "win-cinema-player";
   const existing = document.getElementById(winId);
@@ -861,15 +855,15 @@ function openCinemaPlayer(mediaId, type, season, episode) {
           style="background:var(--surface3);color:var(--gold2);border:1px solid var(--border-hi);border-radius:5px;font-family:var(--mono);font-size:11px;padding:4px 10px;outline:none;cursor:pointer;">
           ${optionsHtml}
         </select>
-        <label style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--text-dim);cursor:pointer;user-select:none;">
-          <input type="checkbox" id="proxy-toggle" checked style="cursor:pointer;accent-color:var(--gold);"/>
+        <label style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--text-dim);cursor:pointer;user-select:none;" title="Route through MOS proxy (try if direct fails)">
+          <input type="checkbox" id="proxy-toggle" style="cursor:pointer;accent-color:var(--gold);"/>
           PROXY
         </label>
         <span style="font-family:var(--mono);font-size:10px;color:var(--text-mid);text-transform:uppercase;flex:1;" id="cinema-label">${escHtml(label)}</span>
         ${type === "tv" ? `<button onclick="cinemaChangeEp()"
           style="background:var(--surface3);border:1px solid var(--border);border-radius:5px;color:var(--text-mid);font-family:var(--mono);font-size:10px;padding:4px 10px;cursor:pointer;letter-spacing:0.06em;">S/E ▸</button>` : ""}
       </div>
-      <div id="cinema-loading" style="display:none;position:absolute;inset:38px 0 0 0;background:var(--bg);z-index:5;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
+      <div id="cinema-loading" style="position:absolute;inset:38px 0 0 0;background:var(--bg);z-index:5;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
         <div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.1em;">LOADING STREAM…</div>
         <div style="width:200px;height:2px;background:var(--surface3);border-radius:1px;overflow:hidden;">
           <div style="width:60%;height:100%;background:var(--gold);animation:loadPulse 1.2s ease-in-out infinite;"></div>
@@ -882,7 +876,6 @@ function openCinemaPlayer(mediaId, type, season, episode) {
 
   document.getElementById("windows").appendChild(win);
 
-  // Add loading animation keyframe if not already there
   if (!document.getElementById("cinema-anim-style")) {
     const s = document.createElement("style");
     s.id = "cinema-anim-style";
@@ -894,10 +887,10 @@ function openCinemaPlayer(mediaId, type, season, episode) {
   openWindows[winId] = { title:"Cinema Player", iconId:"search" };
   refreshTaskbar();
 
-  const select     = win.querySelector("#provider-select");
-  const iframe     = win.querySelector("#cinema-frame");
-  const proxyChk   = win.querySelector("#proxy-toggle");
-  const loadingEl  = win.querySelector("#cinema-loading");
+  const select    = win.querySelector("#provider-select");
+  const iframe    = win.querySelector("#cinema-frame");
+  const proxyChk  = win.querySelector("#proxy-toggle");
+  const loadingEl = win.querySelector("#cinema-loading");
 
   win._cinemaState = { mediaId, type, season, episode };
 
@@ -915,17 +908,17 @@ function openCinemaPlayer(mediaId, type, season, episode) {
     const realUrl = buildProviderUrl(pId);
     if (!realUrl) return;
 
-    // Show loading indicator
     loadingEl.style.display = "flex";
     iframe.style.display = "none";
 
-    const useProxy = proxyChk ? proxyChk.checked : true;
+    // FIX [1]: Load DIRECT by default — proxy checkbox is opt-in only.
+    // Video CDNs detect proxy headers and serve black/blank pages.
+    const useProxy = proxyChk ? proxyChk.checked : false;
     const src = useProxy
       ? `/fetch?url=${encodeURIComponent(realUrl)}&_t=stream`
       : realUrl;
 
     iframe.src = "about:blank";
-    // Small delay so browser clears old stream
     setTimeout(() => {
       iframe.src = src;
       iframe.style.display = "block";
@@ -933,10 +926,11 @@ function openCinemaPlayer(mediaId, type, season, episode) {
     }, 150);
   }
 
-  select.onchange = (e) => loadStream(e.target.value);
-  if (proxyChk) proxyChk.onchange = () => loadStream(select.value);
+  // Re-load on provider or proxy-mode change
+  select.onchange  = (e) => loadStream(e.target.value);
+  proxyChk.onchange = ()  => loadStream(select.value);
 
-  // Load first provider
+  // Load first provider immediately (direct)
   loadStream(PROVIDERS[0].id);
 
   win.cinemaChangeEp = function() {
@@ -956,14 +950,40 @@ function cinemaChangeEp() {
 }
 
 // ══════════════════════════════════════
-//  PROXY MESSAGE HANDLER
+//  MESSAGE HANDLER
+//  FIX [2]: Only forward mos-navigate-proxy messages that come from the
+//  BROWSER frame (galaxy-browser-frame). Cinema player iframes also fire
+//  these messages (from the injected runtime script), and the old handler
+//  was blindly routing them into the browser — causing search to show
+//  movie provider page content / posters instead of search results.
 // ══════════════════════════════════════
 window.addEventListener("message", (e) => {
   if (!e.data || typeof e.data !== "object") return;
+
   if (e.data.type === "mos-navigate-proxy" && e.data.url) {
+    // Only act on this if the source is the browser frame, not cinema
+    const browserFrame = document.getElementById("galaxy-browser-frame");
+    if (!browserFrame) return; // browser not open — ignore
+
+    try {
+      // e.source is the contentWindow of the frame that sent the message.
+      // Only forward if it's the browser frame, not a cinema player frame.
+      if (e.source !== browserFrame.contentWindow) return;
+    } catch (_) {
+      return;
+    }
+
+    try {
+      browserFrame.contentWindow.postMessage({ type:"mos-navigate", url:e.data.url }, "*");
+    } catch(err) {}
+    return;
+  }
+
+  // mos-navigate: direct navigation command (used by openBrowser(url))
+  if (e.data.type === "mos-navigate" && e.data.url) {
     const frame = document.getElementById("galaxy-browser-frame");
     if (frame) {
-      try { frame.contentWindow.postMessage({ type:"mos-navigate", url:e.data.url }, "*"); } catch(err) {}
+      try { frame.contentWindow.postMessage({ type:"mos-navigate", url:e.data.url }, "*"); } catch(_) {}
     } else {
       openBrowser(e.data.url);
     }
