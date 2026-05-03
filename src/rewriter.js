@@ -1,9 +1,8 @@
 "use strict";
 
 // ══════════════════════════════════════
-//  MATRIARCHS OS — rewriter.js  v8
-//  Server-side HTML/CSS/JS URL rewriting
-//  + WASM-aware injected runtime sandbox
+//  MATRIARCHS OS — rewriter.js  v9
+//  Fix: \\1 / \\2 inside template literal (Node v25 strict octal ban)
 // ══════════════════════════════════════
 
 function prefix(proxyBase) {
@@ -42,37 +41,31 @@ function rewriteHtml(html, targetUrl, proxyBase) {
   const pfx = prefix(proxyBase);
   const rw  = (val) => { try { return toProxy(val, targetUrl, pfx); } catch { return val; } };
 
-  // src= on all elements
   html = html.replace(
     /(\s)(src)=(["'])(.*?)\3/gi,
     (_, sp, attr, q, val) => `${sp}${attr}=${q}${rw(val)}${q}`
   );
 
-  // href= on <link> tags
   html = html.replace(
     /(<link\b[^>]*?\s)(href)=(["'])(.*?)\3/gi,
     (_, pre, attr, q, val) => `${pre}${attr}=${q}${rw(val)}${q}`
   );
 
-  // action= on <form>
   html = html.replace(
     /(<form\b[^>]*?\s)(action)=(["'])(.*?)\3/gi,
     (_, pre, attr, q, val) => `${pre}${attr}=${q}${rw(val)}${q}`
   );
 
-  // data-* resource attributes
   html = html.replace(
     /(\s)(data-src|data-href|data-lazy|data-lazy-src|data-original|data-url|data-image|data-background|data-bg|data-thumb|data-full|data-link|data-path|data-poster)=(["'])(.*?)\3/gi,
     (_, sp, attr, q, val) => `${sp}${attr}=${q}${rw(val)}${q}`
   );
 
-  // poster=
   html = html.replace(
     /(\s)(poster)=(["'])(.*?)\3/gi,
     (_, sp, attr, q, val) => `${sp}${attr}=${q}${rw(val)}${q}`
   );
 
-  // srcset=
   html = html.replace(
     /(\ssrcset=)(["'])(.*?)\2/gi,
     (_, attr, q, val) => {
@@ -87,13 +80,11 @@ function rewriteHtml(html, targetUrl, proxyBase) {
     }
   );
 
-  // url() in inline style= attributes
   html = html.replace(
     /(style=["'][^"']*?)url\((["']?)([^"')]+)\2\)/gi,
     (_, pre, q, u) => `${pre}url(${q}${rw(u.trim())}${q})`
   );
 
-  // url() inside <style> blocks
   html = html.replace(
     /(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi,
     (_, open, content, close) => {
@@ -105,48 +96,41 @@ function rewriteHtml(html, targetUrl, proxyBase) {
     }
   );
 
-  // <a href=> — rewrite for navigation through proxy
   html = html.replace(
     /(<a\b[^>]*?\s)(href)=(["'])((?!#|javascript:|mailto:|tel:)[^"']+)\3/gi,
     (_, pre, attr, q, val) => `${pre}${attr}=${q}${rw(val)}${q}`
   );
 
-  // <meta http-equiv="refresh" content="0; url=...">
   html = html.replace(
     /(<meta\b[^>]*?\scontent=["'][^"']*?url=)([^"'\s;>]+)/gi,
     (_, pre, val) => `${pre}${rw(val)}`
   );
 
-  // <link rel="preload|modulepreload" href>
   html = html.replace(
     /(<link\b[^>]*?\srel=["'](?:preload|modulepreload|prefetch)["'][^>]*?\shref=)(["'])([^"']+)\2/gi,
     (_, pre, q, val) => `${pre}${q}${rw(val)}${q}`
   );
 
-  // <script type="module" src>  — already handled by src= above
-
-  // <import-map> / <script type="importmap"> — rewrite JSON URLs
   html = html.replace(
     /(<script\b[^>]*?\stype=["']importmap["'][^>]*>)([\s\S]*?)(<\/script>)/gi,
     (_, open, json, close) => {
       try {
         const obj = JSON.parse(json);
         const rewriteMap = (map) => {
-          if (!map || typeof map !== 'object') return map;
+          if (!map || typeof map !== "object") return map;
           const out = {};
           for (const [k, v] of Object.entries(map)) {
-            out[k] = typeof v === 'string' ? rw(v) : rewriteMap(v);
+            out[k] = typeof v === "string" ? rw(v) : rewriteMap(v);
           }
           return out;
         };
         if (obj.imports) obj.imports = rewriteMap(obj.imports);
         if (obj.scopes)  obj.scopes  = rewriteMap(obj.scopes);
         return open + JSON.stringify(obj, null, 2) + close;
-      } catch { return _ ; }
+      } catch { return _; }
     }
   );
 
-  // Remove integrity / crossorigin / nonce so rewritten assets load
   html = html.replace(/\s+integrity=(["'])[^"']*\1/gi, "");
   html = html.replace(/\s+crossorigin=(["'])[^"']*\1/gi, "");
   html = html.replace(/\scrossorigin(?=[\s>])/gi, "");
@@ -159,7 +143,6 @@ function rewriteHtml(html, targetUrl, proxyBase) {
 function rewriteCss(css, targetUrl, proxyBase) {
   const pfx = prefix(proxyBase);
 
-  // @import url(...) and @import "..."
   css = css.replace(
     /@import\s+(?:url\(["']?([^"')]+)["']?\)|["']([^"']+)["'])([^;]*;?)/gi,
     (_, u1, u2, rest) => {
@@ -175,7 +158,6 @@ function rewriteCss(css, targetUrl, proxyBase) {
     }
   );
 
-  // url() references
   css = css.replace(
     /url\((["']?)([^"')]*)\1\)/gi,
     (match, q, u) => {
@@ -213,19 +195,16 @@ function rewriteJs(code, targetUrl, proxyBase) {
     } catch { return u; }
   }
 
-  // static: import "url" and import ... from "url"
   code = code.replace(
     /\bimport\s+((?:[\w*{},\s]+\s+from\s+)?)(["'])((?!data:|blob:)[^"']+)\2/g,
     (_, pre, q, u) => `import ${pre}${q}${rwImport(u)}${q}`
   );
 
-  // dynamic: import("url") with literal string
   code = code.replace(
     /\bimport\s*\(\s*(["'])((?!data:|blob:)[^"']+)\1\s*\)/g,
     (_, q, u) => `import(${q}${rwImport(u)}${q})`
   );
 
-  // export ... from "url"
   code = code.replace(
     /\bexport\s+(\{[^}]*\}|\*(?:\s+as\s+\w+)?)\s+from\s+(["'])((?!data:|blob:)[^"']+)\2/g,
     (_, exp, q, u) => `export ${exp} from ${q}${rwImport(u)}${q}`
@@ -258,14 +237,10 @@ function escAttr(s) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  RUNTIME SANDBOX SCRIPT — v8
-//  Injected into every proxied page.
-//  Covers: fetch, XHR, WebSocket, EventSource, Worker,
-//          WASM streaming APIs, CSSStyleSheet.insertRule,
-//          dynamic createElement, setAttribute, MutationObserver,
-//          history API, link click interception, location spoofing,
-//          anti-detection (top/parent/frameElement/webdriver),
-//          import.meta.url spoofing for module scripts
+//  RUNTIME SANDBOX — v9
+//  KEY FIX: regex backreferences inside this template literal
+//  must use \\1 / \\2 (not \1 / \2) because Node.js v25 treats
+//  \1 as an octal escape sequence in template strings (strict mode).
 // ═══════════════════════════════════════════════════════════════
 function buildRuntimeScript(pfx, origin, targetUrl, proxyBase) {
   const _pfx    = JSON.stringify(pfx);
@@ -280,15 +255,12 @@ var __P   = ${_pfx};
 var __O   = ${_origin};
 var __T   = ${_target};
 
-// Capture real parent BEFORE any overrides
 var __PAR = null;
 try{
   if(window.parent && window.parent !== window) __PAR = window.parent;
 }catch(e){}
 
-// ═══════════════════════════════
-//  CORE: proxify(url) → proxy url
-// ═══════════════════════════════
+// ── proxify ──────────────────────────────────────────────────────────────────
 function proxify(u){
   if(!u || typeof u !== 'string') return u;
   var s = u.trim();
@@ -297,7 +269,6 @@ function proxify(u){
   if(s.startsWith('data:') || s.startsWith('blob:') || s.startsWith('javascript:') ||
      s.startsWith('mailto:') || s.startsWith('tel:') || s.startsWith('about:') ||
      s.startsWith('#') || s.startsWith('chrome-extension:')) return u;
-  // Strip already-proxied inner URLs
   var fi = s.indexOf('/fetch?url=');
   if(fi !== -1){
     try{
@@ -312,9 +283,7 @@ function proxify(u){
   catch(e) { return u; }
 }
 
-// ══════════════════════
-//  PARENT COMMUNICATION
-// ══════════════════════
+// ── parent comms ──────────────────────────────────────────────────────────────
 function notifyParent(href){
   if(!__PAR) return;
   try{
@@ -332,16 +301,13 @@ function navigateParent(realUrl){
   try{ window.location.href = proxify(realUrl); }catch(e){}
 }
 
-// ════════════════════════════
-//  ANTI-DETECTION & SPOOFING
-// ════════════════════════════
+// ── anti-detection ────────────────────────────────────────────────────────────
 try{ Object.defineProperty(window,'top',{get:function(){return window;},configurable:true}); }catch(e){}
 try{ Object.defineProperty(window,'parent',{get:function(){return window;},configurable:true}); }catch(e){}
 try{ Object.defineProperty(window,'frameElement',{get:function(){return null;},configurable:true}); }catch(e){}
 try{ Object.defineProperty(navigator,'webdriver',{get:function(){return false;},configurable:true}); }catch(e){}
 try{ Object.defineProperty(document,'referrer',{get:function(){return __O+'/';},configurable:true}); }catch(e){}
 
-// chrome stub
 try{
   if(!window.chrome) window.chrome={};
   if(!window.chrome.runtime) window.chrome.runtime={
@@ -352,7 +318,7 @@ try{
   if(!window.chrome.app) window.chrome.app={isInstalled:false};
 }catch(e){}
 
-// Block proxied page's own SW registration (they'd fight ours)
+// Block inner SW registration
 try{
   if('serviceWorker' in navigator){
     Object.defineProperty(navigator,'serviceWorker',{get:function(){
@@ -370,7 +336,7 @@ try{
   }
 }catch(e){}
 
-// Location spoofing
+// Location spoof
 try{
   var _locObj = new URL(__T);
   Object.defineProperty(window,'location',{get:function(){
@@ -395,12 +361,9 @@ try{
   },configurable:true});
 }catch(e){}
 
-// CSP violation suppressor
 try{ window.addEventListener('securitypolicyviolation',function(e){e.stopImmediatePropagation();e.preventDefault();},true); }catch(e){}
 
-// ═══════════════════
-//  FETCH INTERCEPTION
-// ═══════════════════
+// ── fetch ─────────────────────────────────────────────────────────────────────
 try{
   var _origFetch = window.fetch;
   if(_origFetch){
@@ -411,13 +374,10 @@ try{
       }catch(e){}
       return _origFetch.call(this, input, init);
     };
-    try{ Object.defineProperty(window.fetch,'toString',{value:function(){return _origFetch.toString();}}); }catch(e){}
   }
 }catch(e){}
 
-// ═══════════════════
-//  XHR INTERCEPTION
-// ═══════════════════
+// ── XHR ──────────────────────────────────────────────────────────────────────
 try{
   var _origOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function(method, url2){
@@ -427,7 +387,6 @@ try{
   };
 }catch(e){}
 
-// sendBeacon
 try{
   if(navigator.sendBeacon){
     var _origBeacon = navigator.sendBeacon.bind(navigator);
@@ -438,9 +397,7 @@ try{
   }
 }catch(e){}
 
-// ═══════════════════════════════
-//  WEBSOCKET INTERCEPTION
-// ═══════════════════════════════
+// ── WebSocket ─────────────────────────────────────────────────────────────────
 try{
   var _origWS = window.WebSocket;
   if(_origWS){
@@ -457,7 +414,7 @@ try{
   }
 }catch(e){}
 
-// EventSource
+// ── EventSource / Worker ──────────────────────────────────────────────────────
 try{
   var _origES = window.EventSource;
   if(_origES){
@@ -469,7 +426,6 @@ try{
   }
 }catch(e){}
 
-// Worker / SharedWorker
 try{
   var _OW = window.Worker;
   if(_OW){
@@ -480,6 +436,7 @@ try{
     window.Worker.prototype = _OW.prototype;
   }
 }catch(e){}
+
 try{
   var _OS = window.SharedWorker;
   if(_OS){
@@ -491,43 +448,31 @@ try{
   }
 }catch(e){}
 
-// ════════════════════════════════
-//  WEBASSEMBLY STREAMING PATCHING
-//  Intercept WASM fetch sources so
-//  they route through the proxy
-// ════════════════════════════════
+// ── WASM streaming ────────────────────────────────────────────────────────────
 try{
   var _WA = window.WebAssembly;
   if(_WA){
-    // wrapSource: ensures the source Response/Promise uses proxified fetch
     function _waWrap(src){
       if(!src) return src;
-      // Already a Promise<Response> from our patched fetch — leave alone
       if(src && typeof src.then === 'function') return src;
-      // String URL (non-standard but some libs do it)
       if(typeof src === 'string') return fetch(proxify(src));
-      // Request object
       if(typeof Request !== 'undefined' && src instanceof Request){
         return fetch(new Request(proxify(src.url), src));
       }
       return src;
     }
-
     var _origInstStream = _WA.instantiateStreaming;
     if(_origInstStream){
       _WA.instantiateStreaming = function(source, importObj){
         return _origInstStream.call(_WA, _waWrap(source), importObj);
       };
     }
-
     var _origCompStream = _WA.compileStreaming;
     if(_origCompStream){
       _WA.compileStreaming = function(source){
         return _origCompStream.call(_WA, _waWrap(source));
       };
     }
-
-    // instantiate with URL string (rare but possible)
     var _origInst = _WA.instantiate;
     if(_origInst){
       _WA.instantiate = function(bufOrMod, importObj){
@@ -542,19 +487,17 @@ try{
   }
 }catch(e){}
 
-// ══════════════════════════════════════
-//  CSS DYNAMIC INJECTION PATCHING
-//  Covers: insertRule, addRule, @import
-//  so CSS-in-JS libraries work correctly
-// ══════════════════════════════════════
+// ── CSS dynamic injection ─────────────────────────────────────────────────────
+// NOTE: \\1 is used here (not \1) because this is inside a JS template literal.
+// The double-backslash produces a literal \1 in the injected script,
+// which is a valid regex backreference inside the proxied page's runtime.
 try{
   function _patchCssText(text){
     if(!text || typeof text !== 'string') return text;
-    return text.replace(/url\((['"]?)([^'")\s]+)\1\)/g, function(m, q, u){
+    return text.replace(/url\\((['"]?)([^'")\s]+)\\1\\)/g, function(m, q, u){
       try{ return 'url(' + q + proxify(u) + q + ')'; }catch(e){ return m; }
     });
   }
-
   if(window.CSSStyleSheet && CSSStyleSheet.prototype.insertRule){
     var _origInsertRule = CSSStyleSheet.prototype.insertRule;
     CSSStyleSheet.prototype.insertRule = function(rule, idx){
@@ -562,7 +505,6 @@ try{
       return _origInsertRule.call(this, rule, idx);
     };
   }
-
   if(window.CSSStyleSheet && CSSStyleSheet.prototype.addRule){
     var _origAddRule = CSSStyleSheet.prototype.addRule;
     CSSStyleSheet.prototype.addRule = function(sel, style, idx){
@@ -570,8 +512,6 @@ try{
       return _origAddRule.call(this, sel, style, idx);
     };
   }
-
-  // CSS.replace (Constructable Stylesheets)
   if(window.CSSStyleSheet && CSSStyleSheet.prototype.replace){
     var _origReplace = CSSStyleSheet.prototype.replace;
     CSSStyleSheet.prototype.replace = function(text){
@@ -586,8 +526,6 @@ try{
       return _origReplaceSync.call(this, text);
     };
   }
-
-  // style.setProperty for background-image etc.
   if(window.CSSStyleDeclaration && CSSStyleDeclaration.prototype.setProperty){
     var _origSetProp = CSSStyleDeclaration.prototype.setProperty;
     CSSStyleDeclaration.prototype.setProperty = function(prop, val, priority){
@@ -601,9 +539,7 @@ try{
   }
 }catch(e){}
 
-// ════════════════════════════
-//  WINDOW.OPEN + ASSIGNMENT
-// ════════════════════════════
+// ── window.open / location ────────────────────────────────────────────────────
 try{
   var _oOpen = window.open;
   window.open = function(u, t, f){
@@ -612,7 +548,6 @@ try{
   };
 }catch(e){}
 
-// location.assign / replace
 try{
   var _oAssign  = location.assign.bind(location);
   var _oReplace = location.replace.bind(location);
@@ -620,9 +555,7 @@ try{
   location.replace = function(u){ try{u=proxify(u);}catch(e){} _oReplace(u); };
 }catch(e){}
 
-// ════════════════════════════════
-//  ELEMENT PROPERTY INTERCEPTORS
-// ════════════════════════════════
+// ── element property interceptors ─────────────────────────────────────────────
 function _defSrcProp(proto, prop){
   try{
     var d = Object.getOwnPropertyDescriptor(proto, prop);
@@ -636,16 +569,15 @@ function _defSrcProp(proto, prop){
     }
   }catch(e){}
 }
-_defSrcProp(HTMLImageElement.prototype, 'src');
+_defSrcProp(HTMLImageElement.prototype,  'src');
 _defSrcProp(HTMLScriptElement.prototype, 'src');
-_defSrcProp(HTMLLinkElement.prototype, 'href');
+_defSrcProp(HTMLLinkElement.prototype,   'href');
 _defSrcProp(HTMLIFrameElement.prototype, 'src');
-_defSrcProp(HTMLVideoElement.prototype, 'src');
-_defSrcProp(HTMLAudioElement.prototype, 'src');
+_defSrcProp(HTMLVideoElement.prototype,  'src');
+_defSrcProp(HTMLAudioElement.prototype,  'src');
 _defSrcProp(HTMLSourceElement.prototype, 'src');
-_defSrcProp(HTMLTrackElement.prototype, 'src');
+_defSrcProp(HTMLTrackElement.prototype,  'src');
 
-// setAttribute interception
 try{
   var _origSetAttr = Element.prototype.setAttribute;
   var _proxyAttrs = new Set(['src','href','action','poster','data-src','data-href',
@@ -657,7 +589,7 @@ try{
         if(n === 'srcset'){
           value = value.split(',').map(function(p){
             var t=p.trim(); if(!t) return p;
-            var sp=t.split(/\s+/); sp[0]=proxify(sp[0]); return sp.join(' ');
+            var sp=t.split(/\\s+/); sp[0]=proxify(sp[0]); return sp.join(' ');
           }).join(', ');
         } else {
           value = proxify(value);
@@ -668,15 +600,15 @@ try{
   };
 }catch(e){}
 
-// innerHTML / outerHTML setter — rewrite injected markup
+// innerHTML / outerHTML — NOTE: \\2 and \\1 (not \2/\1) for same reason as above
 try{
   function _rewriteMarkup(html){
     if(!html || typeof html !== 'string') return html;
     return html
-      .replace(/(src|href|action|poster|data-src)=(["'])([^"']+)\2/gi, function(m, a, q, v){
+      .replace(/(src|href|action|poster|data-src)=(["'])([^"']+)\\2/gi, function(m, a, q, v){
         try{ return a+'='+q+proxify(v)+q; }catch(e){ return m; }
       })
-      .replace(/url\((['"]?)([^'")\s]+)\1\)/g, function(m, q, u){
+      .replace(/url\\((['"]?)([^'")\s]+)\\1\\)/g, function(m, q, u){
         try{ return 'url('+q+proxify(u)+q+')'; }catch(e){ return m; }
       });
   }
@@ -695,7 +627,7 @@ try{
   if(window.ShadowRoot) _patchInnerHTML(ShadowRoot.prototype, 'innerHTML');
 }catch(e){}
 
-// history API
+// ── history API ───────────────────────────────────────────────────────────────
 try{
   function _wrapHistory(orig){
     return function(state, title, url2){
@@ -709,9 +641,7 @@ try{
   history.replaceState = _wrapHistory(history.replaceState.bind(history));
 }catch(e){}
 
-// ════════════════════════════════════════
-//  LINK CLICK INTERCEPTION — NAVIGATION
-// ════════════════════════════════════════
+// ── link click interception ───────────────────────────────────────────────────
 document.addEventListener('click', function(e){
   var el = e.target;
   while(el && el.tagName !== 'A') el = el.parentElement;
@@ -740,9 +670,7 @@ document.addEventListener('click', function(e){
   navigateParent(realUrl);
 }, true);
 
-// ═══════════════════════════════════════
-//  MUTATIONOBSERVER — patch dynamic nodes
-// ═══════════════════════════════════════
+// ── MutationObserver ──────────────────────────────────────────────────────────
 function _fixNode(node){
   if(!node || node.nodeType !== 1) return;
   var ATTRS = ['src','href','poster','action','data-src','data-lazy','data-lazy-src',
@@ -755,32 +683,28 @@ function _fixNode(node){
       if(p !== v) node.setAttribute(attr, p);
     }catch(e){}
   });
-  // srcset
   try{
     var ss = node.getAttribute && node.getAttribute('srcset');
     if(ss){
       var rw = ss.split(',').map(function(part){
         var t=part.trim(); if(!t) return part;
-        var sp=t.split(/\s+/); sp[0]=proxify(sp[0]); return sp.join(' ');
+        var sp=t.split(/\\s+/); sp[0]=proxify(sp[0]); return sp.join(' ');
       }).join(', ');
       if(rw !== ss) node.setAttribute('srcset', rw);
     }
   }catch(e){}
-  // inline style background
   try{
     if(node.style && node.style.backgroundImage){
       node.style.backgroundImage = node.style.backgroundImage.replace(
-        /url\(["']?([^"')]+)["']?\)/g,
+        /url\\(["']?([^"')]+)["']?\\)/g,
         function(m, u){ try{ return 'url(' + proxify(u) + ')'; }catch(e){ return m; } }
       );
     }
   }catch(e){}
 }
 
-// Patch existing DOM
 try{ document.querySelectorAll('*').forEach(function(n){ try{_fixNode(n);}catch(e){}; }); }catch(e){}
 
-// Patch future DOM mutations
 try{
   new MutationObserver(function(muts){
     muts.forEach(function(m){
@@ -798,12 +722,8 @@ try{
   });
 }catch(e){}
 
-// Initial notify + popstate tracking
 notifyParent(__T);
 window.addEventListener('popstate', function(){ notifyParent(window.location.href); });
-
-// Module script import.meta.url spoofing
-// We inject a global __mos_meta_url that module scripts can reference
 try{ window.__mos_meta_url = __T; }catch(e){}
 
 })();
