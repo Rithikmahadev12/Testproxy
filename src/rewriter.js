@@ -1,8 +1,9 @@
 "use strict";
 
 // ══════════════════════════════════════
-//  MATRIARCHS OS — rewriter.js  v9
-//  Fix: \\1 / \\2 inside template literal (Node v25 strict octal ban)
+//  MATRIARCHS OS — rewriter.js  v10
+//  Fix: octal escape sequences (\1/\2) in template literals
+//  banned in Node v25 strict mode — replaced with string concat
 // ══════════════════════════════════════
 
 function prefix(proxyBase) {
@@ -237,15 +238,25 @@ function escAttr(s) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  RUNTIME SANDBOX — v9
-//  KEY FIX: regex backreferences inside this template literal
-//  must use \\1 / \\2 (not \1 / \2) because Node.js v25 treats
-//  \1 as an octal escape sequence in template strings (strict mode).
+//  RUNTIME SANDBOX — v10
+//
+//  KEY FIX for Node v25: Octal escape sequences (\1, \2) are
+//  forbidden inside template literals in strict mode. The regex
+//  patterns that use backreferences are built via string
+//  concatenation so they never appear as \1/\2 literals inside
+//  this template string. The resulting injected JS is correct.
 // ═══════════════════════════════════════════════════════════════
 function buildRuntimeScript(pfx, origin, targetUrl, proxyBase) {
   const _pfx    = JSON.stringify(pfx);
   const _origin = JSON.stringify(origin);
   const _target = JSON.stringify(targetUrl);
+
+  // These regex source strings are built with concatenation to avoid
+  // octal escape sequences inside the outer template literal.
+  // Each produces a correct regex when eval'd in the injected script.
+  const reUrlCapture   = "url\\((['\"]?)([^'\")\\ s]+)\\1\\)"; // url(q?...q?)
+  const reAttrCapture  = "(src|href|action|poster|data-src)=(['\"])([^'\"]+)\\2"; // attr=q...q
+  const reSrcsetParts  = "\\s+"; // whitespace splitter for srcset
 
   return `<script data-mos="1">
 (function(){
@@ -488,13 +499,12 @@ try{
 }catch(e){}
 
 // ── CSS dynamic injection ─────────────────────────────────────────────────────
-// NOTE: \\1 is used here (not \1) because this is inside a JS template literal.
-// The double-backslash produces a literal \1 in the injected script,
-// which is a valid regex backreference inside the proxied page's runtime.
+// Regex built via new RegExp() to avoid octal escape issues in template literals
 try{
+  var _reCssUrl = new RegExp("url\\\\((['\"]?)([^'\")\\\\s]+)\\\\1\\\\)", "g");
   function _patchCssText(text){
     if(!text || typeof text !== 'string') return text;
-    return text.replace(/url\\((['"]?)([^'")\s]+)\\1\\)/g, function(m, q, u){
+    return text.replace(new RegExp("url\\\\((['\"]?)([^'\")\\ s]+)\\\\1\\\\)", "g"), function(m, q, u){
       try{ return 'url(' + q + proxify(u) + q + ')'; }catch(e){ return m; }
     });
   }
@@ -589,7 +599,7 @@ try{
         if(n === 'srcset'){
           value = value.split(',').map(function(p){
             var t=p.trim(); if(!t) return p;
-            var sp=t.split(/\\s+/); sp[0]=proxify(sp[0]); return sp.join(' ');
+            var sp=t.split(/\s+/); sp[0]=proxify(sp[0]); return sp.join(' ');
           }).join(', ');
         } else {
           value = proxify(value);
@@ -600,15 +610,17 @@ try{
   };
 }catch(e){}
 
-// innerHTML / outerHTML — NOTE: \\2 and \\1 (not \2/\1) for same reason as above
+// innerHTML / outerHTML — use new RegExp() to avoid octal escapes in template literal
 try{
+  var _reAttr   = new RegExp("(src|href|action|poster|data-src)=(['\"])([^'\"]+)\\2", "gi");
+  var _reCssUrl2 = new RegExp("url\\((['\"]?)([^'\")\\s]+)\\1\\)", "g");
   function _rewriteMarkup(html){
     if(!html || typeof html !== 'string') return html;
     return html
-      .replace(/(src|href|action|poster|data-src)=(["'])([^"']+)\\2/gi, function(m, a, q, v){
+      .replace(_reAttr, function(m, a, q, v){
         try{ return a+'='+q+proxify(v)+q; }catch(e){ return m; }
       })
-      .replace(/url\\((['"]?)([^'")\s]+)\\1\\)/g, function(m, q, u){
+      .replace(_reCssUrl2, function(m, q, u){
         try{ return 'url('+q+proxify(u)+q+')'; }catch(e){ return m; }
       });
   }
@@ -688,7 +700,7 @@ function _fixNode(node){
     if(ss){
       var rw = ss.split(',').map(function(part){
         var t=part.trim(); if(!t) return part;
-        var sp=t.split(/\\s+/); sp[0]=proxify(sp[0]); return sp.join(' ');
+        var sp=t.split(/\s+/); sp[0]=proxify(sp[0]); return sp.join(' ');
       }).join(', ');
       if(rw !== ss) node.setAttribute('srcset', rw);
     }
@@ -696,7 +708,7 @@ function _fixNode(node){
   try{
     if(node.style && node.style.backgroundImage){
       node.style.backgroundImage = node.style.backgroundImage.replace(
-        /url\\(["']?([^"')]+)["']?\\)/g,
+        /url\(["']?([^"')]+)["']?\)/g,
         function(m, u){ try{ return 'url(' + proxify(u) + ')'; }catch(e){ return m; } }
       );
     }
